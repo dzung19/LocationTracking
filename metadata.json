@@ -1,0 +1,6 @@
+{
+  "name": "Location Tracker",
+  "description": "An offline-safe and foreground-capable location tracker that animates your coordinates on a Google Map using standard Android Bind Service architecture.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
