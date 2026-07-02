@@ -325,209 +325,214 @@ fun MainTrackerScreen(
             }
         }
 
-        // 2. Custom FAB to snap map camera back to user's location
-        FloatingActionButton(
-            onClick = {
-                currentLatLng?.let { latLng ->
-                    cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(latLng, 16f))
-                }
-            },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(bottom = 220.dp, end = 16.dp)
-                .testTag("recenter_button"),
-            shape = CircleShape,
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-        ) {
-            Icon(
-                imageVector = Icons.Default.MyLocation,
-                contentDescription = "Recenter Map"
-            )
-        }
-
-        // 3. Float Panel Card overlaid on top of Google Map
-        Card(
+        // Container for bottom UI elements to prevent overlap
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(16.dp)
-                .fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-            )
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.End
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
+            // 2. Custom FAB to snap map camera back to user's location
+            FloatingActionButton(
+                onClick = {
+                    currentLatLng?.let { latLng ->
+                        cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(latLng, 16f))
+                    }
+                },
+                modifier = Modifier
+                    .padding(bottom = 16.dp)
+                    .testTag("recenter_button"),
+                shape = CircleShape,
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ) {
-                // Header with tracking badge
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Icon(
+                    imageVector = Icons.Default.MyLocation,
+                    contentDescription = "Recenter Map"
+                )
+            }
+
+            // 3. Float Panel Card overlaid on top of Google Map
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
                 ) {
-                    Column {
-                        Text(
-                            text = "GPS Tracking Hub",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = if (state.isTracking) "Foreground updates active" else "System idle",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    // Status Indicator Badge
-                    val badgeColor = if (state.isTracking) Color(0xFF4CAF50) else Color(0xFFF44336)
-                    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-                    val pulseScale by infiniteTransition.animateFloat(
-                        initialValue = 0.8f,
-                        targetValue = 1.2f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(1000, easing = FastOutSlowInEasing),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = "pulse_anim"
-                    )
-
+                    // Header with tracking badge
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(badgeColor.copy(alpha = 0.15f))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
+                        Column {
+                            Text(
+                                text = "GPS Tracking Hub",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (state.isTracking) "Foreground updates active" else "System idle",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        // Status Indicator Badge
+                        val badgeColor = if (state.isTracking) Color(0xFF4CAF50) else Color(0xFFF44336)
+                        val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+                        val pulseScale by infiniteTransition.animateFloat(
+                            initialValue = 0.8f,
+                            targetValue = 1.2f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(1000, easing = FastOutSlowInEasing),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "pulse_anim"
+                        )
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(badgeColor)
-                                .then(
-                                    if (state.isTracking) {
-                                        Modifier.background(badgeColor.copy(alpha = 0.5f)) // Visual pulsing
-                                    } else Modifier
-                                )
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(badgeColor.copy(alpha = 0.15f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(badgeColor)
+                                    .then(
+                                        if (state.isTracking) {
+                                            Modifier.background(badgeColor.copy(alpha = 0.5f)) // Visual pulsing
+                                        } else Modifier
+                                    )
+                            )
+                            Text(
+                                text = if (state.isTracking) "TRACKING" else "STOPPED",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = badgeColor
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Grid with Lat, Lon, Accuracy details
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        DetailItem(
+                            label = "LATITUDE",
+                            value = state.latitude?.let { "%.5f".format(it) } ?: "N/A",
+                            modifier = Modifier.weight(1f)
                         )
+                        DetailItem(
+                            label = "LONGITUDE",
+                            value = state.longitude?.let { "%.5f".format(it) } ?: "N/A",
+                            modifier = Modifier.weight(1f)
+                        )
+                        DetailItem(
+                            label = "ACCURACY",
+                            value = state.accuracy?.let { "±%.1fm".format(it) } ?: "N/A",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Render latest timestamp or error messages
+                    if (state.errorMessage != null) {
                         Text(
-                            text = if (state.isTracking) "TRACKING" else "STOPPED",
+                            text = state.errorMessage,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    } else if (state.timestamp != null) {
+                        val sdf = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
+                        val formattedTime = remember(state.timestamp) { sdf.format(Date(state.timestamp)) }
+                        Text(
+                            text = "Last Update: $formattedTime",
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = badgeColor
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier.align(Alignment.End)
                         )
                     }
-                }
 
-                Spacer(modifier = Modifier.height(12.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                // Grid with Lat, Lon, Accuracy details
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    DetailItem(
-                        label = "LATITUDE",
-                        value = state.latitude?.let { "%.5f".format(it) } ?: "N/A",
-                        modifier = Modifier.weight(1f)
-                    )
-                    DetailItem(
-                        label = "LONGITUDE",
-                        value = state.longitude?.let { "%.5f".format(it) } ?: "N/A",
-                        modifier = Modifier.weight(1f)
-                    )
-                    DetailItem(
-                        label = "ACCURACY",
-                        value = state.accuracy?.let { "±%.1fm".format(it) } ?: "N/A",
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Render latest timestamp or error messages
-                if (state.errorMessage != null) {
-                    Text(
-                        text = state.errorMessage,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                } else if (state.timestamp != null) {
-                    val sdf = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
-                    val formattedTime = remember(state.timestamp) { sdf.format(Date(state.timestamp)) }
-                    Text(
-                        text = "Last Update: $formattedTime",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        modifier = Modifier.align(Alignment.End)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Control Action Buttons (Start / Stop Tracking)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Start Tracking Button
-                    Button(
-                        onClick = {
-                            // 1. Force foreground service execution
-                            onStartService()
-                            // 2. Trigger updates from bound reference
-                            service.startLocationUpdates()
-                        },
-                        enabled = !state.isTracking,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
-                            .testTag("start_tracking_button")
+                    // Control Action Buttons (Start / Stop Tracking)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Start Icon",
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Start", fontWeight = FontWeight.SemiBold)
-                    }
+                        // Start Tracking Button
+                        Button(
+                            onClick = {
+                                // 1. Force foreground service execution
+                                onStartService()
+                                // 2. Trigger updates from bound reference
+                                service.startLocationUpdates()
+                            },
+                            enabled = !state.isTracking,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                                .testTag("start_tracking_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "Start Icon",
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Start", fontWeight = FontWeight.SemiBold)
+                        }
 
-                    // Stop Tracking Button
-                    Button(
-                        onClick = {
-                            service.stopLocationUpdates()
-                        },
-                        enabled = state.isTracking,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
-                            .testTag("stop_tracking_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Stop,
-                            contentDescription = "Stop Icon",
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Stop", fontWeight = FontWeight.SemiBold)
+                        // Stop Tracking Button
+                        Button(
+                            onClick = {
+                                service.stopLocationUpdates()
+                            },
+                            enabled = state.isTracking,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                                .testTag("stop_tracking_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Stop,
+                                contentDescription = "Stop Icon",
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Stop", fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 }
             }
