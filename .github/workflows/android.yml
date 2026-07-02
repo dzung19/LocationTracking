@@ -27,6 +27,9 @@ jobs:
     - name: Decode Debug Keystore
       run: echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 --decode > debug.keystore
 
+    - name: Create local.properties with Secrets
+      run: echo "MAPS_API_KEY=${{ secrets.MAPS_API_KEY }}" >> local.properties
+
     - name: Build and Test Debug
       run: ./gradlew assembleDebug testDebugUnitTest --stacktrace
 
