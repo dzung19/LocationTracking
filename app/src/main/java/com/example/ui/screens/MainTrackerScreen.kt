@@ -91,7 +91,9 @@ fun MainTrackerScreen(
                         }
                         showWeightDialog = false
                     }
-                })
+                }) {
+                    Text("OK")
+                }
             },
             dismissButton = {
                 TextButton(onClick = { showWeightDialog = false }) {
