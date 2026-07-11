@@ -50,13 +50,11 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    LocationTrackerApp(
-                        viewModel = locationViewModel,
-                        modifier = Modifier.padding(innerPadding),
-                        onStartService = ::startForegroundTrackingService
-                    )
-                }
+                LocationTrackerApp(
+                    viewModel = locationViewModel,
+                    modifier = Modifier.fillMaxSize(),
+                    onStartService = ::startForegroundTrackingService
+                )
             }
         }
     }

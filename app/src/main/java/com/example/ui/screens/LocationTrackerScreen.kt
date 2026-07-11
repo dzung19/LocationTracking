@@ -122,7 +122,7 @@ fun LocationTrackerApp(
         NavHost(
             navController = navController,
             startDestination = "tracker",
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.fillMaxSize()
         ) {
             composable("tracker") {
                 val context = LocalContext.current
@@ -174,7 +174,8 @@ fun LocationTrackerApp(
                                     }
                                 }.toTypedArray()
                                 permissionLauncher.launch(req)
-                            }
+                            },
+                            contentPadding = innerPadding
                         )
                     }
                 }
@@ -185,7 +186,8 @@ fun LocationTrackerApp(
                     viewModel = historyViewModel,
                     onNavigateToDetail = { sessionId ->
                         navController.navigate("detail/$sessionId")
-                    }
+                    },
+                    modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
                 )
             }
 
@@ -199,7 +201,8 @@ fun LocationTrackerApp(
                     viewModel = historyViewModel,
                     onBackClick = {
                         navController.popBackStack()
-                    }
+                    },
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }
@@ -237,7 +240,8 @@ fun MainTrackerScreen(
     state: LocationTrackingState,
     onStartService: () -> Unit,
     hasLocationPermission: Boolean,
-    onRequestPermission: () -> Unit
+    onRequestPermission: () -> Unit,
+    contentPadding: PaddingValues = PaddingValues()
 ) {
     val context = LocalContext.current
     val LAT_KEY = doublePreferencesKey("last_lat")
@@ -297,7 +301,8 @@ fun MainTrackerScreen(
             uiSettings = MapUiSettings(
                 myLocationButtonEnabled = false,
                 zoomControlsEnabled = false
-            )
+            ),
+            contentPadding = contentPadding
         ) {
             currentLatLng?.let { latLng ->
                 Marker(
@@ -321,6 +326,7 @@ fun MainTrackerScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                .padding(bottom = contentPadding.calculateBottomPadding())
                 .padding(16.dp),
             horizontalAlignment = Alignment.End
         ) {
