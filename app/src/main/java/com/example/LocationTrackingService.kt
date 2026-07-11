@@ -10,6 +10,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.location.Location
 import android.os.Binder
 import android.os.Build
@@ -23,6 +27,8 @@ import com.example.data.database.AppDatabase
 import com.example.data.database.LocationPoint
 import com.example.data.database.RunSession
 import com.example.data.database.RunDao
+import com.example.ui.screens.WEIGHT_KEY
+import com.example.ui.screens.dataStore
 import com.google.android.gms.location.FusedLocationProviderClient
 import org.koin.android.ext.android.inject
 import com.google.android.gms.location.LocationCallback
@@ -48,7 +54,7 @@ import kotlinx.coroutines.withContext
  * It elevates itself to a Foreground Service while tracking is active to prevent the system
  * from reclaiming its resources, and exposes location updates in real-time through a Kotlin StateFlow.
  */
-class LocationTrackingService : Service() {
+class LocationTrackingService : Service(), SensorEventListener {
 
     companion object {
         private const val TAG = "LocationTrackingService"
@@ -68,6 +74,9 @@ class LocationTrackingService : Service() {
     val trackingState: StateFlow<LocationTrackingState> = _trackingState.asStateFlow()
 
     private lateinit var notificationManager: NotificationManager
+    
+    private lateinit var sensorManager: SensorManager
+    private var pressureSensor: Sensor? = null
 
     // Run Tracker specifics
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -77,6 +86,13 @@ class LocationTrackingService : Service() {
     private var accumulatedDistance: Float = 0f
     private var accumulatedCalories: Float = 0f
     private var startTimeMillis: Long = 0L
+    private var currentWeightKg: Float = 70f
+    
+    // Barometer tracking
+    private var currentElevation: Float = 0f
+    private var lastSlopeDistance: Float = 0f
+    private var lastSlopeElevation: Float = 0f
+    private var currentSlopePercentage: Float = 0f
 
     inner class LocalBinder : Binder() {
         fun getService(): LocationTrackingService = this@LocationTrackingService
@@ -87,8 +103,19 @@ class LocationTrackingService : Service() {
         Log.d(TAG, "onCreate: Initializing service resources")
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        pressureSensor = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE)
+        
         createNotificationChannel()
         setupLocationCallback()
+        
+        // Observe weight changes from DataStore
+        serviceScope.launch {
+            applicationContext.dataStore.data.collect { prefs ->
+                currentWeightKg = prefs[WEIGHT_KEY] ?: 70f
+            }
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder {
@@ -106,6 +133,20 @@ class LocationTrackingService : Service() {
         }
         return START_STICKY
     }
+
+    override fun onSensorChanged(event: SensorEvent?) {
+        if (event?.sensor?.type == Sensor.TYPE_PRESSURE) {
+            val pressure = event.values[0]
+            val altitude = SensorManager.getAltitude(SensorManager.PRESSURE_STANDARD_ATMOSPHERE, pressure)
+            
+            if (lastSlopeElevation == 0f) {
+                lastSlopeElevation = altitude
+            }
+            currentElevation = altitude
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
     /**
      * Called by ViewModel before starting to set the activity type
@@ -148,10 +189,19 @@ class LocationTrackingService : Service() {
                 val met = getMET(speedKmh, currentActivityType)
                 
                 // Formula: Calories/min = (MET * Weight(kg) * 3.5) / 200
-                // Here we use a default weight of 70kg for now
-                val weightKg = 70f
+                val weightKg = currentWeightKg
                 val caloriesDelta = (met * weightKg * 3.5f / 200f) * timeDeltaMinutes
                 accumulatedCalories += caloriesDelta
+
+                // Slope calculation
+                val deltaDistanceForSlope = accumulatedDistance - lastSlopeDistance
+                if (deltaDistanceForSlope > 10f && currentElevation != 0f) { // Update slope every 10 meters to smooth noise
+                    val deltaElevation = currentElevation - lastSlopeElevation
+                    currentSlopePercentage = (deltaElevation / deltaDistanceForSlope) * 100f
+                    
+                    lastSlopeDistance = accumulatedDistance
+                    lastSlopeElevation = currentElevation
+                }
 
                 _trackingState.update { currentState ->
                     val newPath = currentState.pathPoints + latLng
@@ -163,6 +213,8 @@ class LocationTrackingService : Service() {
                         timestamp = location.time,
                         distanceMeters = accumulatedDistance,
                         caloriesBurned = accumulatedCalories.toInt(),
+                        elevationMeters = currentElevation,
+                        slopePercentage = currentSlopePercentage,
                         pathPoints = newPath,
                         errorMessage = null
                     )
@@ -218,6 +270,16 @@ class LocationTrackingService : Service() {
             accumulatedCalories = 0f
             previousLocation = null
             startTimeMillis = System.currentTimeMillis()
+            
+            currentElevation = 0f
+            lastSlopeDistance = 0f
+            lastSlopeElevation = 0f
+            currentSlopePercentage = 0f
+            
+            pressureSensor?.let {
+                sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+            }
+
             _trackingState.update {
                 it.copy(
                     isTracking = true,
@@ -225,6 +287,8 @@ class LocationTrackingService : Service() {
                     distanceMeters = 0f,
                     elapsedTimeSeconds = 0L,
                     caloriesBurned = 0,
+                    elevationMeters = 0f,
+                    slopePercentage = 0f,
                     pathPoints = emptyList()
                 )
             }
@@ -294,6 +358,7 @@ class LocationTrackingService : Service() {
         if (!_trackingState.value.isTracking) return
 
         fusedLocationClient.removeLocationUpdates(locationCallback)
+        sensorManager.unregisterListener(this)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             stopForeground(STOP_FOREGROUND_REMOVE)

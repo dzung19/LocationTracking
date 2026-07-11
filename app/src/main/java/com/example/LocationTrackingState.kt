@@ -20,6 +20,8 @@ data class LocationTrackingState(
     val distanceMeters: Float = 0f,
     val elapsedTimeSeconds: Long = 0L,
     val caloriesBurned: Int = 0,
+    val elevationMeters: Float = 0f,
+    val slopePercentage: Float = 0f,
     val activityType: ActivityType = ActivityType.RUNNING,
     val pathPoints: List<LatLng> = emptyList()
 )
