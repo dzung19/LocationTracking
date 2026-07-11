@@ -32,6 +32,7 @@ import androidx.core.app.ActivityCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.LocationTrackingState
 import com.example.LocationViewModel
+import com.example.HistoryViewModel
 import com.example.data.database.ActivityType
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
