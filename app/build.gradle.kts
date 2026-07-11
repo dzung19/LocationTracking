@@ -78,7 +78,7 @@ dependencies {
   implementation(libs.androidx.compose.ui.graphics)
   implementation(libs.androidx.compose.ui.tooling.preview)
   implementation(libs.androidx.core.ktx)
-  // implementation(libs.androidx.datastore.preferences)
+  implementation(libs.androidx.datastore.preferences)
   implementation(libs.androidx.lifecycle.runtime.compose)
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.androidx.lifecycle.viewmodel.compose)
@@ -97,6 +97,13 @@ dependencies {
   implementation(libs.maps.compose)
   implementation(libs.play.services.maps)
   implementation(libs.retrofit)
+  
+  // Koin
+  implementation(platform(libs.koin.bom))
+  implementation(libs.koin.core)
+  implementation(libs.koin.android)
+  implementation(libs.koin.androidx.compose)
+  
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)

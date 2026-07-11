@@ -11,7 +11,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
+import org.koin.androidx.viewmodel.ext.android.viewModel
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -23,8 +23,8 @@ class MainActivity : ComponentActivity() {
 
     private val TAG = "MainActivity"
 
-    // Instantiate ViewModel scoped to this Activity
-    private val locationViewModel: LocationViewModel by viewModels()
+    // Instantiate ViewModel scoped to this Activity using Koin
+    private val locationViewModel: LocationViewModel by viewModel()
     
     private var isServiceBound = false
 

@@ -22,7 +22,9 @@ import com.example.data.database.ActivityType
 import com.example.data.database.AppDatabase
 import com.example.data.database.LocationPoint
 import com.example.data.database.RunSession
+import com.example.data.database.RunDao
 import com.google.android.gms.location.FusedLocationProviderClient
+import org.koin.android.ext.android.inject
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
@@ -58,6 +60,7 @@ class LocationTrackingService : Service() {
     }
 
     private val binder = LocalBinder()
+    private val runDao: RunDao by inject()
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
 
@@ -151,7 +154,7 @@ class LocationTrackingService : Service() {
                             longitude = location.longitude,
                             timestamp = location.time
                         )
-                        AppDatabase.getDatabase(this@LocationTrackingService).runDao().insertLocationPoint(point)
+                        runDao.insertLocationPoint(point)
                     }
                 }
 
@@ -205,12 +208,11 @@ class LocationTrackingService : Service() {
             // Start Timer and DB Session
             val currentActivityType = _trackingState.value.activityType
             serviceScope.launch {
-                val db = AppDatabase.getDatabase(this@LocationTrackingService)
                 val session = RunSession(
                     startTimeInMillis = startTimeMillis,
                     activityType = currentActivityType
                 )
-                currentSessionId = db.runDao().insertRunSession(session)
+                currentSessionId = runDao.insertRunSession(session)
             }
 
             startTimer()
@@ -259,14 +261,13 @@ class LocationTrackingService : Service() {
         val finalState = _trackingState.value
         serviceScope.launch {
             currentSessionId?.let { sid ->
-                val db = AppDatabase.getDatabase(this@LocationTrackingService)
-                db.runDao().getRunSession(sid)?.let { session ->
+                runDao.getRunSession(sid)?.let { session ->
                     val updatedSession = session.copy(
                         endTimeInMillis = System.currentTimeMillis(),
                         totalDistanceMeters = finalState.distanceMeters,
                         totalCalories = finalState.caloriesBurned
                     )
-                    db.runDao().updateRunSession(updatedSession)
+                    runDao.updateRunSession(updatedSession)
                 }
             }
             currentSessionId = null

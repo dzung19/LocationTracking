@@ -37,6 +37,11 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
+import androidx.datastore.preferences.core.doublePreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.preferencesDataStore
+
+val Context.dataStore by preferencesDataStore(name = "LocationPrefs")
 
 @Composable
 fun LocationTrackerApp(
@@ -77,23 +82,23 @@ fun LocationTrackerApp(
     Box(modifier = modifier.fillMaxSize()) {
         if (!isServiceBound) {
             ServiceConnectingScreen()
-        } else if (!hasLocationPermission) {
-            PermissionDeniedScreen(onRequestPermission = {
-                val req = mutableListOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                ).apply {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        add(Manifest.permission.POST_NOTIFICATIONS)
-                    }
-                }.toTypedArray()
-                permissionLauncher.launch(req)
-            })
         } else {
             MainTrackerScreen(
                 viewModel = viewModel,
                 state = trackingState,
-                onStartService = onStartService
+                onStartService = onStartService,
+                hasLocationPermission = hasLocationPermission,
+                onRequestPermission = {
+                    val req = mutableListOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    ).apply {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            add(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    }.toTypedArray()
+                    permissionLauncher.launch(req)
+                }
             )
         }
     }
@@ -123,55 +128,35 @@ fun ServiceConnectingScreen() {
     }
 }
 
-@Composable
-fun PermissionDeniedScreen(onRequestPermission: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(32.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(
-            imageVector = Icons.Default.Warning,
-            contentDescription = "Warning Icon",
-            tint = MaterialTheme.colorScheme.error,
-            modifier = Modifier.size(72.dp)
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            text = "Location Permission Required",
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onBackground,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(
-            onClick = onRequestPermission,
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .testTag("permission_grant_button")
-        ) {
-            Text("Grant Location Permission", fontWeight = FontWeight.SemiBold)
-        }
-    }
-}
 
 @Composable
 fun MainTrackerScreen(
     viewModel: LocationViewModel,
     state: LocationTrackingState,
-    onStartService: () -> Unit
+    onStartService: () -> Unit,
+    hasLocationPermission: Boolean,
+    onRequestPermission: () -> Unit
 ) {
     val context = LocalContext.current
-    val defaultLocation = LatLng(10.762622, 106.660172)
+    val LAT_KEY = doublePreferencesKey("last_lat")
+    val LON_KEY = doublePreferencesKey("last_lon")
+
+    val locationPrefs by context.dataStore.data.collectAsStateWithLifecycle(initialValue = null)
+
+    if (locationPrefs == null) {
+        // Wait for DataStore to load the initial cached location
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    val savedLat = locationPrefs?.get(LAT_KEY) ?: 10.762622
+    val savedLon = locationPrefs?.get(LON_KEY) ?: 106.660172
+    val defaultLocation = LatLng(savedLat, savedLon)
     
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(defaultLocation, 12f)
+        position = CameraPosition.fromLatLngZoom(defaultLocation, 16f)
     }
 
     val currentLatLng = remember(state.latitude, state.longitude) {
@@ -179,6 +164,16 @@ fun MainTrackerScreen(
             LatLng(state.latitude, state.longitude)
         } else {
             null
+        }
+    }
+
+    // Save newly tracked coordinates to DataStore
+    LaunchedEffect(state.latitude, state.longitude) {
+        if (state.latitude != null && state.longitude != null) {
+            context.dataStore.edit { prefs ->
+                prefs[LAT_KEY] = state.latitude
+                prefs[LON_KEY] = state.longitude
+            }
         }
     }
 
@@ -195,7 +190,7 @@ fun MainTrackerScreen(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
             properties = MapProperties(
-                isMyLocationEnabled = context.checkLocationPermissions()
+                isMyLocationEnabled = hasLocationPermission
             ),
             uiSettings = MapUiSettings(
                 myLocationButtonEnabled = false,
@@ -227,20 +222,21 @@ fun MainTrackerScreen(
                 .padding(16.dp),
             horizontalAlignment = Alignment.End
         ) {
-            FloatingActionButton(
-                onClick = {
-                    currentLatLng?.let { latLng ->
-                        cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(latLng, 16f))
-                    }
-                },
-                modifier = Modifier
-                    .padding(bottom = 16.dp)
-                    .testTag("recenter_button"),
-                shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            ) {
-                Icon(Icons.Default.MyLocation, "Recenter Map")
+            if (hasLocationPermission) {
+                FloatingActionButton(
+                    onClick = {
+                        val target = currentLatLng ?: defaultLocation
+                        cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(target, 16f))
+                    },
+                    modifier = Modifier
+                        .padding(bottom = 16.dp)
+                        .testTag("recenter_button"),
+                    shape = CircleShape,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ) {
+                    Icon(Icons.Default.MyLocation, "Recenter Map")
+                }
             }
 
             Card(
@@ -251,9 +247,43 @@ fun MainTrackerScreen(
                     containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
                 )
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
+                if (!hasLocationPermission) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "Warning Icon",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Location Permission Required",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Please grant permission to track your activity and view your current location.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = onRequestPermission,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Grant Permission")
+                        }
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
