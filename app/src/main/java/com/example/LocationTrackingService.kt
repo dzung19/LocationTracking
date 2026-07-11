@@ -75,6 +75,7 @@ class LocationTrackingService : Service() {
     private var currentSessionId: Long? = null
     private var previousLocation: Location? = null
     private var accumulatedDistance: Float = 0f
+    private var accumulatedCalories: Float = 0f
     private var startTimeMillis: Long = 0L
 
     inner class LocalBinder : Binder() {
@@ -121,15 +122,36 @@ class LocationTrackingService : Service() {
                 super.onLocationResult(result)
                 val location = result.lastLocation ?: return
                 
-                // Calculate distance
+                // Calculate distance and time delta
                 var distanceDelta = 0f
+                var timeDeltaMs = 0L
                 previousLocation?.let { prevLoc ->
                     distanceDelta = prevLoc.distanceTo(location)
+                    timeDeltaMs = location.time - prevLoc.time
                     accumulatedDistance += distanceDelta
                 }
                 previousLocation = location
 
                 val latLng = LatLng(location.latitude, location.longitude)
+                
+                // Calculate Calories using MET formula
+                val timeDeltaMinutes = timeDeltaMs / 60000f
+                val speedMps = if (location.hasSpeed()) {
+                    location.speed
+                } else if (timeDeltaMs > 0) {
+                    distanceDelta / (timeDeltaMs / 1000f)
+                } else {
+                    0f
+                }
+                val speedKmh = speedMps * 3.6f
+                val currentActivityType = _trackingState.value.activityType
+                val met = getMET(speedKmh, currentActivityType)
+                
+                // Formula: Calories/min = (MET * Weight(kg) * 3.5) / 200
+                // Here we use a default weight of 70kg for now
+                val weightKg = 70f
+                val caloriesDelta = (met * weightKg * 3.5f / 200f) * timeDeltaMinutes
+                accumulatedCalories += caloriesDelta
 
                 _trackingState.update { currentState ->
                     val newPath = currentState.pathPoints + latLng
@@ -140,6 +162,7 @@ class LocationTrackingService : Service() {
                         accuracy = location.accuracy,
                         timestamp = location.time,
                         distanceMeters = accumulatedDistance,
+                        caloriesBurned = accumulatedCalories.toInt(),
                         pathPoints = newPath,
                         errorMessage = null
                     )
@@ -192,6 +215,7 @@ class LocationTrackingService : Service() {
 
             // Reset state
             accumulatedDistance = 0f
+            accumulatedCalories = 0f
             previousLocation = null
             startTimeMillis = System.currentTimeMillis()
             _trackingState.update {
@@ -222,6 +246,34 @@ class LocationTrackingService : Service() {
         }
     }
 
+    private fun getMET(speedKmh: Float, activityType: ActivityType): Float {
+        // If speed is very low, treat as standing still / resting
+        if (speedKmh < 1.0f) return 1.3f // Approximate resting MET
+        
+        return if (activityType == ActivityType.WALKING) {
+            when {
+                speedKmh < 3.2f -> 2.0f
+                speedKmh < 4.0f -> 3.0f
+                speedKmh < 4.8f -> 3.3f
+                speedKmh < 5.6f -> 3.8f
+                speedKmh < 6.4f -> 4.3f
+                speedKmh < 7.2f -> 5.0f
+                else -> 6.0f // brisk walking
+            }
+        } else { // RUNNING
+            when {
+                speedKmh < 6.4f -> 5.0f // slow jog
+                speedKmh < 8.0f -> 6.0f
+                speedKmh < 9.7f -> 8.3f
+                speedKmh < 11.3f -> 9.8f
+                speedKmh < 12.9f -> 11.0f
+                speedKmh < 14.5f -> 11.8f
+                speedKmh < 16.1f -> 12.8f
+                else -> 14.5f // fast running
+            }
+        }
+    }
+
     private fun startTimer() {
         timerJob?.cancel()
         timerJob = serviceScope.launch {
@@ -230,14 +282,8 @@ class LocationTrackingService : Service() {
                 val elapsedSeconds = (System.currentTimeMillis() - startTimeMillis) / 1000
                 
                 _trackingState.update { state ->
-                    // Calorie calculation: weight * distance(km) * multiplier
-                    val multiplier = if (state.activityType == ActivityType.RUNNING) 1.036f else 0.73f
-                    val distanceKm = state.distanceMeters / 1000f
-                    val calories = (70f * distanceKm * multiplier).toInt()
-                    
                     state.copy(
-                        elapsedTimeSeconds = elapsedSeconds,
-                        caloriesBurned = calories
+                        elapsedTimeSeconds = elapsedSeconds
                     )
                 }
             }
