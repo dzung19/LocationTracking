@@ -32,13 +32,11 @@ import androidx.core.app.ActivityCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.LocationTrackingState
 import com.example.LocationViewModel
+import com.example.data.database.ActivityType
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @Composable
 fun LocationTrackerApp(
@@ -50,12 +48,10 @@ fun LocationTrackerApp(
     val isServiceBound by viewModel.isServiceBound.collectAsStateWithLifecycle()
     val trackingState by viewModel.trackingState.collectAsStateWithLifecycle()
 
-    // Observe permission states reactively
     var hasLocationPermission by remember {
         mutableStateOf(context.checkLocationPermissions())
     }
 
-    // Prepare launcher for fine, coarse and notifications permissions
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -64,7 +60,6 @@ fun LocationTrackerApp(
         hasLocationPermission = fineGranted || coarseGranted
     }
 
-    // Launch permission request if not already granted
     LaunchedEffect(Unit) {
         if (!hasLocationPermission) {
             val req = mutableListOf(
@@ -81,10 +76,8 @@ fun LocationTrackerApp(
 
     Box(modifier = modifier.fillMaxSize()) {
         if (!isServiceBound) {
-            // State 1: Bound Service is still connecting/binding
             ServiceConnectingScreen()
         } else if (!hasLocationPermission) {
-            // State 2: Permission is denied
             PermissionDeniedScreen(onRequestPermission = {
                 val req = mutableListOf(
                     Manifest.permission.ACCESS_FINE_LOCATION,
@@ -97,7 +90,6 @@ fun LocationTrackerApp(
                 permissionLauncher.launch(req)
             })
         } else {
-            // State 3: Permissions granted and service is bound!
             MainTrackerScreen(
                 viewModel = viewModel,
                 state = trackingState,
@@ -128,13 +120,6 @@ fun ServiceConnectingScreen() {
             color = MaterialTheme.colorScheme.onBackground,
             fontWeight = FontWeight.SemiBold
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Establishing binder pipeline to securely track GPS coordinates",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-            textAlign = TextAlign.Center
-        )
     }
 }
 
@@ -162,14 +147,6 @@ fun PermissionDeniedScreen(onRequestPermission: () -> Unit) {
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
         )
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = "This application uses the Fused Location Provider and Google Maps SDK to display and track your coordinates in real-time. Please grant location permissions to continue.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
-            textAlign = TextAlign.Center,
-            lineHeight = 20.sp
-        )
         Spacer(modifier = Modifier.height(32.dp))
         Button(
             onClick = onRequestPermission,
@@ -191,16 +168,12 @@ fun MainTrackerScreen(
     onStartService: () -> Unit
 ) {
     val context = LocalContext.current
-
-    // Default coordinate (Vietnam central area)
     val defaultLocation = LatLng(10.762622, 106.660172)
     
-    // Manage Camera Position State
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(defaultLocation, 12f)
     }
 
-    // Collect latest coordinate from flow state
     val currentLatLng = remember(state.latitude, state.longitude) {
         if (state.latitude != null && state.longitude != null) {
             LatLng(state.latitude, state.longitude)
@@ -209,7 +182,6 @@ fun MainTrackerScreen(
         }
     }
 
-    // Auto-animate map camera to the latest coordinates whenever they update
     LaunchedEffect(currentLatLng) {
         currentLatLng?.let { latLng ->
             cameraPositionState.animate(
@@ -219,7 +191,6 @@ fun MainTrackerScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // 1. Google Map Rendering
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
@@ -227,21 +198,28 @@ fun MainTrackerScreen(
                 isMyLocationEnabled = context.checkLocationPermissions()
             ),
             uiSettings = MapUiSettings(
-                myLocationButtonEnabled = false, // We provide our own floating button
+                myLocationButtonEnabled = false,
                 zoomControlsEnabled = false
             )
         ) {
-            // Render Marker if coordinates exist
             currentLatLng?.let { latLng ->
                 Marker(
                     state = rememberMarkerState(position = latLng),
-                    title = "My Current Location",
+                    title = "Current Location",
                     snippet = "Accuracy: ${state.accuracy ?: 0f}m"
+                )
+            }
+
+            // Draw Breadcrumb Trail (Polyline)
+            if (state.pathPoints.isNotEmpty()) {
+                Polyline(
+                    points = state.pathPoints,
+                    color = Color.Blue,
+                    width = 12f
                 )
             }
         }
 
-        // Container for bottom UI elements to prevent overlap
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -249,7 +227,6 @@ fun MainTrackerScreen(
                 .padding(16.dp),
             horizontalAlignment = Alignment.End
         ) {
-            // 2. Custom FAB to snap map camera back to user's location
             FloatingActionButton(
                 onClick = {
                     currentLatLng?.let { latLng ->
@@ -263,13 +240,9 @@ fun MainTrackerScreen(
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ) {
-                Icon(
-                    imageVector = Icons.Default.MyLocation,
-                    contentDescription = "Recenter Map"
-                )
+                Icon(Icons.Default.MyLocation, "Recenter Map")
             }
 
-            // 3. Float Panel Card overlaid on top of Google Map
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
@@ -281,7 +254,6 @@ fun MainTrackerScreen(
                 Column(
                     modifier = Modifier.padding(16.dp)
                 ) {
-                    // Header with tracking badge
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -289,7 +261,7 @@ fun MainTrackerScreen(
                     ) {
                         Column {
                             Text(
-                                text = "GPS Tracking Hub",
+                                text = "Activity Tracker",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -301,19 +273,7 @@ fun MainTrackerScreen(
                             )
                         }
 
-                        // Status Indicator Badge
                         val badgeColor = if (state.isTracking) Color(0xFF4CAF50) else Color(0xFFF44336)
-                        val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-                        val pulseScale by infiniteTransition.animateFloat(
-                            initialValue = 0.8f,
-                            targetValue = 1.2f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(1000, easing = FastOutSlowInEasing),
-                                repeatMode = RepeatMode.Reverse
-                            ),
-                            label = "pulse_anim"
-                        )
-
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -327,11 +287,6 @@ fun MainTrackerScreen(
                                     .size(8.dp)
                                     .clip(CircleShape)
                                     .background(badgeColor)
-                                    .then(
-                                        if (state.isTracking) {
-                                            Modifier.background(badgeColor.copy(alpha = 0.5f)) // Visual pulsing
-                                        } else Modifier
-                                    )
                             )
                             Text(
                                 text = if (state.isTracking) "TRACKING" else "STOPPED",
@@ -346,63 +301,73 @@ fun MainTrackerScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Grid with Lat, Lon, Accuracy details
+                    // Dashboard Grid
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        DetailItem(
-                            label = "LATITUDE",
-                            value = state.latitude?.let { "%.5f".format(it) } ?: "N/A",
-                            modifier = Modifier.weight(1f)
-                        )
-                        DetailItem(
-                            label = "LONGITUDE",
-                            value = state.longitude?.let { "%.5f".format(it) } ?: "N/A",
-                            modifier = Modifier.weight(1f)
-                        )
-                        DetailItem(
-                            label = "ACCURACY",
-                            value = state.accuracy?.let { "±%.1fm".format(it) } ?: "N/A",
-                            modifier = Modifier.weight(1f)
-                        )
+                        DetailItem("DISTANCE", "%.2f km".format(state.distanceMeters / 1000f), Modifier.weight(1f))
+                        
+                        val paceStr = if (state.distanceMeters > 0) {
+                            val paceSecondsPerKm = (state.elapsedTimeSeconds / (state.distanceMeters / 1000f)).toInt()
+                            val mins = paceSecondsPerKm / 60
+                            val secs = paceSecondsPerKm % 60
+                            "%d:%02d /km".format(mins, secs)
+                        } else {
+                            "-:-- /km"
+                        }
+                        DetailItem("PACE", paceStr, Modifier.weight(1f))
                     }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Render latest timestamp or error messages
-                    if (state.errorMessage != null) {
-                        Text(
-                            text = state.errorMessage,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
-                    } else if (state.timestamp != null) {
-                        val sdf = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
-                        val formattedTime = remember(state.timestamp) { sdf.format(Date(state.timestamp)) }
-                        Text(
-                            text = "Last Update: $formattedTime",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            modifier = Modifier.align(Alignment.End)
-                        )
+                    
+                    Spacer(Modifier.height(8.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        val h = state.elapsedTimeSeconds / 3600
+                        val m = (state.elapsedTimeSeconds % 3600) / 60
+                        val s = state.elapsedTimeSeconds % 60
+                        val timeStr = if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
+                        
+                        DetailItem("TIME", timeStr, Modifier.weight(1f))
+                        DetailItem("CALORIES", "${state.caloriesBurned} kcal", Modifier.weight(1f))
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Control Action Buttons (Start / Stop Tracking)
+                    if (!state.isTracking) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                            val isWalking = state.activityType == ActivityType.WALKING
+                            Button(
+                                onClick = { viewModel.setActivityType(ActivityType.WALKING) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isWalking) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                    contentColor = if (isWalking) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            ) { Text("Walk 🚶‍♂️") }
+                            
+                            Spacer(modifier = Modifier.width(8.dp))
+                    
+                            val isRunning = state.activityType == ActivityType.RUNNING
+                            Button(
+                                onClick = { viewModel.setActivityType(ActivityType.RUNNING) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                    contentColor = if (isRunning) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            ) { Text("Run 🏃‍♂️") }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // Start Tracking Button
                         Button(
                             onClick = {
-                                // 1. Force foreground service execution
                                 onStartService()
-                                // 2. Trigger updates from ViewModel
                                 viewModel.startTracking()
                             },
                             enabled = !state.isTracking,
@@ -411,41 +376,24 @@ fun MainTrackerScreen(
                                 disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                             ),
                             shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                                .testTag("start_tracking_button")
+                            modifier = Modifier.weight(1f).height(48.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = "Start Icon",
-                                modifier = Modifier.size(18.dp)
-                            )
+                            Icon(Icons.Default.PlayArrow, "Start", modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Start", fontWeight = FontWeight.SemiBold)
                         }
 
-                        // Stop Tracking Button
                         Button(
-                            onClick = {
-                                viewModel.stopTracking()
-                            },
+                            onClick = { viewModel.stopTracking() },
                             enabled = state.isTracking,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.error,
                                 disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                             ),
                             shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                                .testTag("stop_tracking_button")
+                            modifier = Modifier.weight(1f).height(48.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Stop,
-                                contentDescription = "Stop Icon",
-                                modifier = Modifier.size(18.dp)
-                            )
+                            Icon(Icons.Default.Stop, "Stop", modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Stop", fontWeight = FontWeight.SemiBold)
                         }
@@ -482,16 +430,7 @@ fun DetailItem(
     }
 }
 
-/**
- * Extension helper to evaluate if ACCESS_FINE_LOCATION or ACCESS_COARSE_LOCATION are granted.
- */
 fun Context.checkLocationPermissions(): Boolean {
-    return ActivityCompat.checkSelfPermission(
-        this,
-        Manifest.permission.ACCESS_FINE_LOCATION
-    ) == PackageManager.PERMISSION_GRANTED ||
-            ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
+    return ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 }

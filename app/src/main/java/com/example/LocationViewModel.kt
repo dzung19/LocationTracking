@@ -58,4 +58,11 @@ class LocationViewModel : ViewModel() {
     fun stopTracking() {
         activeService?.stopLocationUpdates()
     }
+
+    /**
+     * Delegates setting the activity type to the active service.
+     */
+    fun setActivityType(type: com.example.data.database.ActivityType) {
+        activeService?.setActivityType(type)
+    }
 }
