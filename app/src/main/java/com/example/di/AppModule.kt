@@ -1,6 +1,7 @@
 package com.example.di
 
 import com.example.LocationViewModel
+import com.example.HistoryViewModel
 import com.example.data.database.AppDatabase
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
@@ -15,4 +16,7 @@ val appModule = module {
     
     // Provide LocationViewModel
     viewModel { LocationViewModel() }
+    
+    // Provide HistoryViewModel
+    viewModel { HistoryViewModel(get()) }
 }

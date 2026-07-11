@@ -23,4 +23,10 @@ interface RunDao {
 
     @Query("SELECT * FROM run_sessions WHERE id = :sessionId")
     suspend fun getRunSession(sessionId: Long): RunSession?
+
+    @Query("SELECT * FROM run_sessions ORDER BY startTimeInMillis DESC")
+    fun getAllRunSessions(): Flow<List<RunSession>>
+
+    @Query("SELECT * FROM location_points WHERE sessionId = :sessionId ORDER BY timestamp ASC")
+    suspend fun getLocationPointsForSessionOnce(sessionId: Long): List<LocationPoint>
 }
