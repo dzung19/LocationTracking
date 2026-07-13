@@ -38,15 +38,14 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
-import androidx.datastore.preferences.core.doublePreferencesKey
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.preferencesDataStore
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.navArgument
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.navigation3.NavKey
+import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.ui.NavDisplay
+import androidx.navigation3.runtime.entryProvider
+import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.History
@@ -58,19 +57,29 @@ import androidx.compose.ui.text.input.KeyboardType
 
 val Context.dataStore by preferencesDataStore(name = "LocationPrefs")
 val WEIGHT_KEY = floatPreferencesKey("user_weight")
+
+@Serializable
+sealed interface ScreenKey : NavKey
+
+@Serializable
+object TrackerKey : ScreenKey
+
+@Serializable
+object HistoryKey : ScreenKey
+
+@Serializable
+data class DetailKey(val sessionId: Long) : ScreenKey
 @Composable
 fun LocationTrackerApp(
     viewModel: LocationViewModel,
     modifier: Modifier = Modifier,
     onStartService: () -> Unit
 ) {
-    val navController = rememberNavController()
+    val backStack = rememberNavBackStack<NavKey>(initialKey = TrackerKey)
     val historyViewModel: HistoryViewModel = koinViewModel()
     
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
-
-    val showBottomBar = currentRoute != null && !currentRoute.startsWith("detail")
+    val currentKey = backStack.lastOrNull()
+    val showBottomBar = currentKey is TrackerKey || currentKey is HistoryKey
 
     Scaffold(
         bottomBar = {
@@ -80,14 +89,11 @@ fun LocationTrackerApp(
                     tonalElevation = 8.dp
                 ) {
                     NavigationBarItem(
-                        selected = currentRoute == "tracker",
+                        selected = currentKey is TrackerKey,
                         onClick = {
-                            if (currentRoute != "tracker") {
-                                navController.navigate("tracker") {
-                                    popUpTo("tracker") { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
+                            if (currentKey !is TrackerKey) {
+                                backStack.clear()
+                                backStack.add(TrackerKey)
                             }
                         },
                         icon = { Icon(Icons.Default.Map, contentDescription = "Tracker") },
@@ -100,14 +106,12 @@ fun LocationTrackerApp(
                         )
                     )
                     NavigationBarItem(
-                        selected = currentRoute == "history",
+                        selected = currentKey is HistoryKey,
                         onClick = {
-                            if (currentRoute != "history") {
-                                navController.navigate("history") {
-                                    popUpTo("tracker") { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
+                            if (currentKey !is HistoryKey) {
+                                backStack.clear()
+                                backStack.add(TrackerKey)
+                                backStack.add(HistoryKey)
                             }
                         },
                         icon = { Icon(Icons.Default.History, contentDescription = "History") },
@@ -124,92 +128,95 @@ fun LocationTrackerApp(
         },
         modifier = modifier
     ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = "tracker",
-            modifier = Modifier.fillMaxSize()
-        ) {
-            composable("tracker") {
-                val context = LocalContext.current
-                val isServiceBound by viewModel.isServiceBound.collectAsStateWithLifecycle()
-                val trackingState by viewModel.trackingState.collectAsStateWithLifecycle()
+        NavDisplay(
+            backStack = backStack,
+            onBack = {
+                if (backStack.size > 1) {
+                    backStack.removeLastOrNull()
+                }
+            },
+            entryProvider = entryProvider {
+                entry<TrackerKey> {
+                    val context = LocalContext.current
+                    val isServiceBound by viewModel.isServiceBound.collectAsStateWithLifecycle()
+                    val trackingState by viewModel.trackingState.collectAsStateWithLifecycle()
 
-                var hasLocationPermission by remember {
-                    mutableStateOf(context.checkLocationPermissions())
+                    var hasLocationPermission by remember {
+                        mutableStateOf(context.checkLocationPermissions())
+                    }
+
+                    val permissionLauncher = rememberLauncherForActivityResult(
+                        contract = ActivityResultContracts.RequestMultiplePermissions()
+                    ) { permissions ->
+                        val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+                        val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+                        hasLocationPermission = fineGranted || coarseGranted
+                    }
+
+                    LaunchedEffect(Unit) {
+                        if (!hasLocationPermission) {
+                            val req = mutableListOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            ).apply {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    add(Manifest.permission.POST_NOTIFICATIONS)
+                                }
+                            }.toTypedArray()
+                            permissionLauncher.launch(req)
+                        }
+                    }
+
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        if (!isServiceBound) {
+                            ServiceConnectingScreen()
+                        } else {
+                            MainTrackerScreen(
+                                viewModel = viewModel,
+                                state = trackingState,
+                                onStartService = onStartService,
+                                hasLocationPermission = hasLocationPermission,
+                                onRequestPermission = {
+                                    val req = mutableListOf(
+                                        Manifest.permission.ACCESS_FINE_LOCATION,
+                                        Manifest.permission.ACCESS_COARSE_LOCATION
+                                    ).apply {
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                            add(Manifest.permission.POST_NOTIFICATIONS)
+                                        }
+                                    }.toTypedArray()
+                                    permissionLauncher.launch(req)
+                                },
+                                contentPadding = innerPadding
+                            )
+                        }
+                    }
                 }
 
-                val permissionLauncher = rememberLauncherForActivityResult(
-                    contract = ActivityResultContracts.RequestMultiplePermissions()
-                ) { permissions ->
-                    val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
-                    val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-                    hasLocationPermission = fineGranted || coarseGranted
+                entry<HistoryKey> {
+                    HistoryScreen(
+                        viewModel = historyViewModel,
+                        onNavigateToDetail = { sessionId ->
+                            backStack.add(DetailKey(sessionId))
+                        },
+                        modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
+                    )
                 }
 
-                LaunchedEffect(Unit) {
-                    if (!hasLocationPermission) {
-                        val req = mutableListOf(
-                            Manifest.permission.ACCESS_FINE_LOCATION,
-                            Manifest.permission.ACCESS_COARSE_LOCATION
-                        ).apply {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                add(Manifest.permission.POST_NOTIFICATIONS)
+                entry<DetailKey> { key ->
+                    RunDetailScreen(
+                        sessionId = key.sessionId,
+                        viewModel = historyViewModel,
+                        onBackClick = {
+                            if (backStack.size > 1) {
+                                backStack.removeLastOrNull()
                             }
-                        }.toTypedArray()
-                        permissionLauncher.launch(req)
-                    }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
-
-                Box(modifier = Modifier.fillMaxSize()) {
-                    if (!isServiceBound) {
-                        ServiceConnectingScreen()
-                    } else {
-                        MainTrackerScreen(
-                            viewModel = viewModel,
-                            state = trackingState,
-                            onStartService = onStartService,
-                            hasLocationPermission = hasLocationPermission,
-                            onRequestPermission = {
-                                val req = mutableListOf(
-                                    Manifest.permission.ACCESS_FINE_LOCATION,
-                                    Manifest.permission.ACCESS_COARSE_LOCATION
-                                ).apply {
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                        add(Manifest.permission.POST_NOTIFICATIONS)
-                                    }
-                                }.toTypedArray()
-                                permissionLauncher.launch(req)
-                            },
-                            contentPadding = innerPadding
-                        )
-                    }
-                }
-            }
-
-            composable("history") {
-                HistoryScreen(
-                    viewModel = historyViewModel,
-                    onNavigateToDetail = { sessionId ->
-                        navController.navigate("detail/$sessionId")
-                    },
-                    modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
-                )
-            }
-
-            composable(
-                route = "detail/{sessionId}",
-                arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val sessionId = backStackEntry.arguments?.getLong("sessionId") ?: 0L
-                RunDetailScreen(
-                    sessionId = sessionId,
-                    viewModel = historyViewModel,
-                    onBackClick = {
-                        navController.popBackStack()
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }

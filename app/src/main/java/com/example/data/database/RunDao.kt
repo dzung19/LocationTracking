@@ -29,4 +29,11 @@ interface RunDao {
 
     @Query("SELECT * FROM location_points WHERE sessionId = :sessionId ORDER BY timestamp ASC")
     suspend fun getLocationPointsForSessionOnce(sessionId: Long): List<LocationPoint>
+
+    @Query("""
+        SELECT COALESCE(SUM(totalDistanceMeters), 0.0) as totalDistanceMeters, COALESCE(SUM(totalCalories), 0) as totalCalories 
+        FROM run_sessions 
+        WHERE startTimeInMillis >= :fromTimeMillis AND startTimeInMillis <= :toTimeMillis
+    """)
+    fun getStatsInRange(fromTimeMillis: Long, toTimeMillis: Long): Flow<RunStats>
 }

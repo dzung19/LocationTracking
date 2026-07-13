@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.database.LocationPoint
 import com.example.data.database.RunDao
 import com.example.data.database.RunSession
+import com.example.data.database.RunStats
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -21,6 +22,33 @@ class HistoryViewModel(private val runDao: RunDao) : ViewModel() {
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    val todayStats: StateFlow<RunStats> = runDao.getStatsInRange(
+        fromTimeMillis = TimeUtils.getStartOfTodayMillis(),
+        toTimeMillis = Long.MAX_VALUE
+    ).stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = RunStats()
+    )
+
+    val weekStats: StateFlow<RunStats> = runDao.getStatsInRange(
+        fromTimeMillis = TimeUtils.getStartOfWeekMillis(),
+        toTimeMillis = Long.MAX_VALUE
+    ).stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = RunStats()
+    )
+
+    val monthStats: StateFlow<RunStats> = runDao.getStatsInRange(
+        fromTimeMillis = TimeUtils.getStartOfMonthMillis(),
+        toTimeMillis = Long.MAX_VALUE
+    ).stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = RunStats()
+    )
 
     private val _sessionPoints = MutableStateFlow<Map<Long, List<LocationPoint>>>(emptyMap())
     val sessionPoints: StateFlow<Map<Long, List<LocationPoint>>> = _sessionPoints.asStateFlow()

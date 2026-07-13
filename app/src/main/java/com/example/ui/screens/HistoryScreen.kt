@@ -27,6 +27,7 @@ import com.example.HistoryViewModel
 import com.example.data.database.ActivityType
 import com.example.data.database.LocationPoint
 import com.example.data.database.RunSession
+import com.example.data.database.RunStats
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -39,6 +40,10 @@ fun HistoryScreen(
 ) {
     val runSessions by viewModel.runSessions.collectAsStateWithLifecycle()
     val sessionPoints by viewModel.sessionPoints.collectAsStateWithLifecycle()
+    
+    val todayStats by viewModel.todayStats.collectAsStateWithLifecycle()
+    val weekStats by viewModel.weekStats.collectAsStateWithLifecycle()
+    val monthStats by viewModel.monthStats.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -94,6 +99,14 @@ fun HistoryScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                item {
+                    StatsHeader(
+                        todayStats = todayStats,
+                        weekStats = weekStats,
+                        monthStats = monthStats
+                    )
+                }
+
                 items(runSessions, key = { it.id }) { session ->
                     // Trigger loading of points for this session to display canvas preview
                     LaunchedEffect(session.id) {
@@ -109,6 +122,72 @@ fun HistoryScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun StatsHeader(
+    todayStats: RunStats,
+    weekStats: RunStats,
+    monthStats: RunStats,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "SUMMARY STATS",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                StatItem("Today", todayStats, Modifier.weight(1f))
+                StatItem("This Week", weekStats, Modifier.weight(1f))
+                StatItem("This Month", monthStats, Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+fun StatItem(
+    title: String,
+    stats: RunStats,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "%.2f km".format(stats.totalDistanceMeters / 1000f),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = "${stats.totalCalories} kcal",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+        )
     }
 }
 

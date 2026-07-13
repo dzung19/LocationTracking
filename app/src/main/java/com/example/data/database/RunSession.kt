@@ -12,3 +12,8 @@ data class RunSession(
     val totalCalories: Int = 0,
     val activityType: ActivityType = ActivityType.RUNNING
 )
+
+data class RunStats(
+    val totalDistanceMeters: Float = 0f,
+    val totalCalories: Int = 0
+)
