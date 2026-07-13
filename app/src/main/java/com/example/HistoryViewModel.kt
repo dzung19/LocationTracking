@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class HistoryViewModel(private val runDao: RunDao) : ViewModel() {
@@ -26,7 +27,8 @@ class HistoryViewModel(private val runDao: RunDao) : ViewModel() {
     val todayStats: StateFlow<RunStats> = runDao.getStatsInRange(
         fromTimeMillis = TimeUtils.getStartOfTodayMillis(),
         toTimeMillis = Long.MAX_VALUE
-    ).stateIn(
+    ).map { it ?: RunStats() }
+    .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = RunStats()
@@ -35,7 +37,8 @@ class HistoryViewModel(private val runDao: RunDao) : ViewModel() {
     val weekStats: StateFlow<RunStats> = runDao.getStatsInRange(
         fromTimeMillis = TimeUtils.getStartOfWeekMillis(),
         toTimeMillis = Long.MAX_VALUE
-    ).stateIn(
+    ).map { it ?: RunStats() }
+    .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = RunStats()
@@ -44,7 +47,8 @@ class HistoryViewModel(private val runDao: RunDao) : ViewModel() {
     val monthStats: StateFlow<RunStats> = runDao.getStatsInRange(
         fromTimeMillis = TimeUtils.getStartOfMonthMillis(),
         toTimeMillis = Long.MAX_VALUE
-    ).stateIn(
+    ).map { it ?: RunStats() }
+    .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = RunStats()

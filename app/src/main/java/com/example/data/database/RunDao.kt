@@ -35,5 +35,5 @@ interface RunDao {
         FROM run_sessions 
         WHERE startTimeInMillis >= :fromTimeMillis AND startTimeInMillis <= :toTimeMillis
     """)
-    fun getStatsInRange(fromTimeMillis: Long, toTimeMillis: Long): Flow<RunStats>
+    fun getStatsInRange(fromTimeMillis: Long, toTimeMillis: Long): Flow<RunStats?>
 }
