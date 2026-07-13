@@ -2,6 +2,7 @@ package com.example.data.database
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(
@@ -11,7 +12,8 @@ import androidx.room.PrimaryKey
         parentColumns = ["id"],
         childColumns = ["sessionId"],
         onDelete = ForeignKey.CASCADE
-    )]
+    )],
+    indices = [Index(value = ["sessionId"])]
 )
 data class LocationPoint(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

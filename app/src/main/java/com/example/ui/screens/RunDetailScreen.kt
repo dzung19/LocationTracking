@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.HistoryViewModel
 import com.example.data.database.ActivityType
@@ -124,14 +125,44 @@ fun RunDetailScreen(
                                 color = MaterialTheme.colorScheme.primary,
                                 width = 12f
                             )
-                            Marker(
+                            MarkerComposable(
                                 state = rememberMarkerState(position = pathPoints.first()),
-                                title = "Start Point"
-                            )
-                            Marker(
+                                anchor = Offset(0.5f, 0.5f)
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFF4CAF50),
+                                    contentColor = Color.White,
+                                    tonalElevation = 4.dp,
+                                    shadowElevation = 4.dp
+                                ) {
+                                    Text(
+                                        text = "START",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                            MarkerComposable(
                                 state = rememberMarkerState(position = pathPoints.last()),
-                                title = "End Point"
-                            )
+                                anchor = Offset(0.5f, 0.5f)
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFFF44336),
+                                    contentColor = Color.White,
+                                    tonalElevation = 4.dp,
+                                    shadowElevation = 4.dp
+                                ) {
+                                    Text(
+                                        text = "END",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

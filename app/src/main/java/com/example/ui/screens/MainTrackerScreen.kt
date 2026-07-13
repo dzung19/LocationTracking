@@ -12,6 +12,9 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -149,11 +152,82 @@ fun MainTrackerScreen(
             contentPadding = contentPadding
         ) {
             currentLatLng?.let { latLng ->
-                Marker(
+                val paceStr = if (state.distanceMeters > 0) {
+                    val paceSecondsPerKm = (state.elapsedTimeSeconds / (state.distanceMeters / 1000f)).toInt()
+                    val mins = paceSecondsPerKm / 60
+                    val secs = paceSecondsPerKm % 60
+                    "%d:%02d".format(mins, secs)
+                } else {
+                    "-:--"
+                }
+
+                MarkerComposable(
                     state = rememberMarkerState(position = latLng),
-                    title = "Current Location",
-                    snippet = "Accuracy: ${state.accuracy ?: 0f}m"
-                )
+                    anchor = Offset(0.5f, 0.9f)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.wrapContentSize()
+                    ) {
+                        // Floating Pace Badge
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            tonalElevation = 4.dp,
+                            shadowElevation = 4.dp
+                        ) {
+                            Text(
+                                text = paceStr,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        // Avatar containing active activity icon
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.primary,
+                            border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
+                            tonalElevation = 4.dp,
+                            shadowElevation = 4.dp,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                Icon(
+                                    imageVector = if (state.activityType == ActivityType.RUNNING) {
+                                        Icons.Default.DirectionsRun
+                                    } else {
+                                        Icons.Default.DirectionsWalk
+                                    },
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+
+                        // Pointer tip
+                        Surface(
+                            shape = androidx.compose.foundation.shape.GenericShape { size, _ ->
+                                moveTo(0f, 0f)
+                                lineTo(size.width, 0f)
+                                lineTo(size.width / 2f, size.height)
+                                close()
+                            },
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .size(width = 8.dp, height = 6.dp)
+                                .offset(y = (-2).dp)
+                        ) {}
+                    }
+                }
             }
 
             // Draw Breadcrumb Trail (Polyline)
