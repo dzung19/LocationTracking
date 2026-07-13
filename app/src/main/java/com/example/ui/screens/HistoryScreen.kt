@@ -50,6 +50,9 @@ fun HistoryScreen(
     val weekStats by viewModel.weekStats.collectAsStateWithLifecycle()
     val monthStats by viewModel.monthStats.collectAsStateWithLifecycle()
 
+    val totalXP by viewModel.totalXP.collectAsStateWithLifecycle()
+    val currentStreak by viewModel.currentStreak.collectAsStateWithLifecycle()
+
     var showDatePicker by remember { mutableStateOf(false) }
 
     if (showDatePicker) {
@@ -138,6 +141,14 @@ fun HistoryScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Orange Tree Gamification Dashboard
+                item {
+                    OrangeTreeDashboard(
+                        totalXP = totalXP,
+                        currentStreak = currentStreak
+                    )
+                }
+
                 item {
                     StatsHeader(
                         todayStats = todayStats,
@@ -508,5 +519,143 @@ fun RouteCanvasPreview(
                 cap = StrokeCap.Round
             )
         )
+    }
+}
+
+@Composable
+fun OrangeTreeDashboard(
+    totalXP: Int,
+    currentStreak: Int,
+    modifier: Modifier = Modifier
+) {
+    // Determine level based on XP
+    val level = when {
+        totalXP <= 200 -> 1
+        totalXP <= 600 -> 2
+        totalXP <= 1500 -> 3
+        totalXP <= 3000 -> 4
+        else -> 5
+    }
+
+    val levelName = when (level) {
+        1 -> "Sprout (Mầm cam)"
+        2 -> "Sapling (Cây con)"
+        3 -> "Young Tree (Cây nhỡ)"
+        4 -> "Flowering Tree (Đơm hoa)"
+        else -> "Fruiting Orange Tree (Trĩu quả)"
+    }
+
+    val nextLevelXP = when (level) {
+        1 -> 200
+        2 -> 600
+        3 -> 1500
+        4 -> 3000
+        else -> 3000 // Max level
+    }
+
+    val prevLevelXP = when (level) {
+        1 -> 0
+        2 -> 200
+        3 -> 600
+        4 -> 1500
+        else -> 3000
+    }
+
+    val progress = if (level >= 5) {
+        1f
+    } else {
+        val range = nextLevelXP - prevLevelXP
+        val currentInRange = totalXP - prevLevelXP
+        (currentInRange.toFloat() / range).coerceIn(0f, 1f)
+    }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Left side: The dynamically drawn pixel-art orange tree
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(100.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .padding(8.dp)
+            ) {
+                OrangeTreeCanvas(
+                    level = level,
+                    streak = currentStreak,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Right side: Statistics and progress bar
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (currentStreak > 0) "🔥 $currentStreak-Day Streak!" else "😴 No Active Streak",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (currentStreak > 0) Color(0xFFFF9800) else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = levelName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (level < 5) {
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "$totalXP / $nextLevelXP XP",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    LinearProgressIndicator(
+                        progress = { 1f },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = Color(0xFF4CAF50), // Green for maxed out
+                        trackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "$totalXP XP (MAX LEVEL)",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF4CAF50)
+                    )
+                }
+            }
+        }
     }
 }
