@@ -11,6 +11,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +30,7 @@ import com.example.data.database.ActivityType
 import com.example.data.database.LocationPoint
 import com.example.data.database.RunSession
 import com.example.data.database.RunStats
+import com.example.TimeUtils
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -38,17 +41,53 @@ fun HistoryScreen(
     onNavigateToDetail: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val runSessions by viewModel.runSessions.collectAsStateWithLifecycle()
+    val runSessions by viewModel.filteredRunSessions.collectAsStateWithLifecycle()
+    val totalSessions by viewModel.runSessions.collectAsStateWithLifecycle()
     val sessionPoints by viewModel.sessionPoints.collectAsStateWithLifecycle()
+    val selectedDateFilter by viewModel.selectedDateFilter.collectAsStateWithLifecycle()
     
     val todayStats by viewModel.todayStats.collectAsStateWithLifecycle()
     val weekStats by viewModel.weekStats.collectAsStateWithLifecycle()
     val monthStats by viewModel.monthStats.collectAsStateWithLifecycle()
 
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState()
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.setDateFilter(datePickerState.selectedDateMillis)
+                        showDatePicker = false
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Activity History", fontWeight = FontWeight.Bold) },
+                actions = {
+                    IconButton(onClick = { showDatePicker = true }) {
+                        Icon(
+                            imageVector = Icons.Default.DateRange,
+                            contentDescription = "Filter by date"
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -57,7 +96,7 @@ fun HistoryScreen(
         },
         modifier = modifier
     ) { innerPadding ->
-        if (runSessions.isEmpty()) {
+        if (totalSessions.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -107,18 +146,69 @@ fun HistoryScreen(
                     )
                 }
 
-                items(runSessions, key = { it.id }) { session ->
-                    // Trigger loading of points for this session to display canvas preview
-                    LaunchedEffect(session.id) {
-                        viewModel.loadPointsForSession(session.id)
+                if (selectedDateFilter != null) {
+                    item {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            InputChip(
+                                selected = true,
+                                onClick = { viewModel.setDateFilter(null) },
+                                label = { Text("Date: ${TimeUtils.formatDateOnly(selectedDateFilter!!)}") },
+                                trailingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Clear filter",
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            )
+                        }
                     }
+                }
 
-                    val points = sessionPoints[session.id] ?: emptyList()
-                    HistoryCard(
-                        session = session,
-                        points = points,
-                        onClick = { onNavigateToDetail(session.id) }
-                    )
+                if (runSessions.isEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "No activities on this date",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                TextButton(onClick = { viewModel.setDateFilter(null) }) {
+                                    Text("Show All Activities")
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    items(runSessions, key = { it.id }) { session ->
+                        // Trigger loading of points for this session to display canvas preview
+                        LaunchedEffect(session.id) {
+                            viewModel.loadPointsForSession(session.id)
+                        }
+
+                        val points = sessionPoints[session.id] ?: emptyList()
+                        HistoryCard(
+                            session = session,
+                            points = points,
+                            onClick = { onNavigateToDetail(session.id) }
+                        )
+                    }
                 }
             }
         }

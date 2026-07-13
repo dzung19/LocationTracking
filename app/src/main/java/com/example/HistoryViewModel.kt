@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -53,6 +54,30 @@ class HistoryViewModel(private val runDao: RunDao) : ViewModel() {
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = RunStats()
     )
+
+    private val _selectedDateFilter = MutableStateFlow<Long?>(null)
+    val selectedDateFilter: StateFlow<Long?> = _selectedDateFilter.asStateFlow()
+
+    val filteredRunSessions: StateFlow<List<RunSession>> = combine(
+        runSessions,
+        _selectedDateFilter
+    ) { sessions, filterMillis ->
+        if (filterMillis == null) {
+            sessions
+        } else {
+            val startOfDay = TimeUtils.getStartOfDayMillis(filterMillis)
+            val endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1
+            sessions.filter { it.startTimeInMillis in startOfDay..endOfDay }
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    fun setDateFilter(timestamp: Long?) {
+        _selectedDateFilter.value = timestamp
+    }
 
     private val _sessionPoints = MutableStateFlow<Map<Long, List<LocationPoint>>>(emptyMap())
     val sessionPoints: StateFlow<Map<Long, List<LocationPoint>>> = _sessionPoints.asStateFlow()

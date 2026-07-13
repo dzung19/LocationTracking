@@ -32,4 +32,19 @@ object TimeUtils {
             set(Calendar.MILLISECOND, 0)
         }.timeInMillis
     }
+
+    fun getStartOfDayMillis(timestamp: Long): Long {
+        return Calendar.getInstance().apply {
+            timeInMillis = timestamp
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }
+
+    fun formatDateOnly(timestamp: Long): String {
+        val sdf = java.text.SimpleDateFormat("MMMM dd, yyyy", java.util.Locale.getDefault())
+        return sdf.format(java.util.Date(timestamp))
+    }
 }
