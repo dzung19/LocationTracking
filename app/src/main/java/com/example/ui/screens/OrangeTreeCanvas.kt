@@ -1,13 +1,16 @@
 package com.example.ui.screens
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import kotlin.math.sin
 
 @Composable
 fun OrangeTreeCanvas(
@@ -134,7 +137,6 @@ fun OrangeTreeCanvas(
 
     // If Level 5, add oranges dynamically based on streak
     if (level >= 5 && streak > 0) {
-        // Define coordinates (row, col) for the top-left of up to 8 oranges (2x2 pixel size each)
         val orangeSlots = listOf(
             Pair(2, 3),   // Left top
             Pair(2, 11),  // Right top
@@ -149,7 +151,6 @@ fun OrangeTreeCanvas(
         val orangesToDraw = minOf(streak, orangeSlots.size)
         for (i in 0 until orangesToDraw) {
             val (row, col) = orangeSlots[i]
-            // Draw a 2x2 block of oranges
             if (row < 15 && col < 15) {
                 grid[row][col] = 'O'
                 grid[row][col + 1] = 'O'
@@ -159,12 +160,32 @@ fun OrangeTreeCanvas(
         }
     }
 
+    // Set up continuous swaying wind animation using infinite transition
+    val infiniteTransition = rememberInfiniteTransition(label = "treeSway")
+    val swayAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * Math.PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "swayAngle"
+    )
+
     Canvas(modifier = modifier.size(120.dp)) {
         val gridSize = 16
         val pixelWidth = size.width / gridSize
         val pixelHeight = size.height / gridSize
+        
+        // Max horizontal sway offset in pixels (approx 3% of width)
+        val maxSwayPx = size.width * 0.03f
 
         for (row in 0 until gridSize) {
+            // Wind shear effect: The top of the tree sways, while the root stays in place.
+            // Row 15 is bottom (0 sway), Row 0 is top (max sway).
+            val heightFactor = (gridSize - 1 - row).toFloat() / (gridSize - 1)
+            val dx = sin(swayAngle) * maxSwayPx * heightFactor
+
             for (col in 0 until gridSize) {
                 val char = grid[row][col]
                 val color = when (char) {
@@ -180,7 +201,7 @@ fun OrangeTreeCanvas(
                 if (color != Color.Transparent) {
                     drawRect(
                         color = color,
-                        topLeft = Offset(col * pixelWidth, row * pixelHeight),
+                        topLeft = Offset(col * pixelWidth + dx, row * pixelHeight),
                         size = Size(pixelWidth, pixelHeight)
                     )
                 }
