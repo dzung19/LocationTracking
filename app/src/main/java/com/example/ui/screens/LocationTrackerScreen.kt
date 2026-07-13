@@ -39,9 +39,10 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.navigation3.NavKey
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import androidx.navigation3.runtime.entryProvider
@@ -51,9 +52,6 @@ import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.MonitorWeight
-import androidx.datastore.preferences.core.floatPreferencesKey
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
 
 val Context.dataStore by preferencesDataStore(name = "LocationPrefs")
 val WEIGHT_KEY = floatPreferencesKey("user_weight")
@@ -75,7 +73,7 @@ fun LocationTrackerApp(
     modifier: Modifier = Modifier,
     onStartService: () -> Unit
 ) {
-    val backStack = rememberNavBackStack<NavKey>(initialKey = TrackerKey)
+    val backStack = rememberNavBackStack<NavKey>(TrackerKey)
     val historyViewModel: HistoryViewModel = koinViewModel()
     
     val currentKey = backStack.lastOrNull()
