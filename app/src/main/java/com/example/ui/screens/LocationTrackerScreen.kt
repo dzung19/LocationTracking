@@ -73,7 +73,7 @@ fun LocationTrackerApp(
     modifier: Modifier = Modifier,
     onStartService: () -> Unit
 ) {
-    val backStack = rememberNavBackStack<NavKey>(TrackerKey)
+    val backStack = rememberNavBackStack(TrackerKey)
     val historyViewModel: HistoryViewModel = koinViewModel()
     
     val currentKey = backStack.lastOrNull()
