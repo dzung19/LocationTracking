@@ -20,6 +20,9 @@ android {
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "dummy_key"
+    ksp {
+      arg("room.schemaLocation", "$projectDir/schemas")
+    }
   }
 
   signingConfigs {
@@ -127,3 +130,5 @@ dependencies {
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
 }
+
+
