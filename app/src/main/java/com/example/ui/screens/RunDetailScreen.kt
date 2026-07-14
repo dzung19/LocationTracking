@@ -16,6 +16,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.res.stringResource
+import com.example.R
 import com.example.HistoryViewModel
 import com.example.data.database.ActivityType
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -75,10 +77,10 @@ fun RunDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Session Details", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.activity_details), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -97,7 +99,7 @@ fun RunDetailScreen(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Session not found", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.session_not_found), style = MaterialTheme.typography.bodyLarge)
             }
         } else {
             Column(
@@ -137,7 +139,7 @@ fun RunDetailScreen(
                                     shadowElevation = 4.dp
                                 ) {
                                     Text(
-                                        text = "START",
+                                        text = stringResource(R.string.start_point),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -156,7 +158,7 @@ fun RunDetailScreen(
                                     shadowElevation = 4.dp
                                 ) {
                                     Text(
-                                        text = "END",
+                                        text = stringResource(R.string.end_point),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -202,12 +204,12 @@ fun RunDetailScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = if (session.activityType == ActivityType.RUNNING) "Running Workout" else "Walking Workout",
+                                    text = if (session.activityType == ActivityType.RUNNING) stringResource(R.string.running_workout) else stringResource(R.string.walking_workout),
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "$dateStr at $timeStr",
+                                    text = stringResource(R.string.session_date_time, dateStr, timeStr),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -242,8 +244,8 @@ fun RunDetailScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            DetailItem("DISTANCE", "%.2f km".format(session.totalDistanceMeters / 1000f), Modifier.weight(1f))
-                            DetailItem("DURATION", durationStr, Modifier.weight(1f))
+                            DetailItem(stringResource(R.string.distance_label), "%.2f km".format(session.totalDistanceMeters / 1000f), Modifier.weight(1f))
+                            DetailItem(stringResource(R.string.duration_label), durationStr, Modifier.weight(1f))
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -252,8 +254,8 @@ fun RunDetailScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            DetailItem("AVG PACE", avgPaceStr, Modifier.weight(1f))
-                            DetailItem("CALORIES", "${session.totalCalories} kcal", Modifier.weight(1f))
+                            DetailItem(stringResource(R.string.avg_pace_label), avgPaceStr, Modifier.weight(1f))
+                            DetailItem(stringResource(R.string.calories_label), "${session.totalCalories} kcal", Modifier.weight(1f))
                         }
                     }
                 }

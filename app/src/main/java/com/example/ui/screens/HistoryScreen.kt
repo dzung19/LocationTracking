@@ -25,6 +25,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.res.stringResource
+import com.example.R
 import com.example.HistoryViewModel
 import com.example.data.database.ActivityType
 import com.example.data.database.LocationPoint
@@ -66,12 +68,12 @@ fun HistoryScreen(
                         showDatePicker = false
                     }
                 ) {
-                    Text("OK")
+                    Text(stringResource(R.string.ok))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         ) {
@@ -82,12 +84,12 @@ fun HistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Activity History", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.activity_history), fontWeight = FontWeight.Bold) },
                 actions = {
                     IconButton(onClick = { showDatePicker = true }) {
                         Icon(
                             imageVector = Icons.Default.DateRange,
-                            contentDescription = "Filter by date"
+                            contentDescription = stringResource(R.string.filter_by_date)
                         )
                     }
                 },
@@ -112,20 +114,20 @@ fun HistoryScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.History,
-                        contentDescription = "No History",
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                         modifier = Modifier.size(72.dp)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "No Activities Recorded Yet",
+                        text = stringResource(R.string.no_activities_recorded),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Your completed runs and walks will appear here.",
+                        text = stringResource(R.string.no_activities_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
@@ -166,11 +168,11 @@ fun HistoryScreen(
                             InputChip(
                                 selected = true,
                                 onClick = { viewModel.setDateFilter(null) },
-                                label = { Text("Date: ${TimeUtils.formatDateOnly(selectedDateFilter!!)}") },
+                                label = { Text(stringResource(R.string.date_filter_prefix, TimeUtils.formatDateOnly(selectedDateFilter!!))) },
                                 trailingIcon = {
                                     Icon(
                                         imageVector = Icons.Default.Close,
-                                        contentDescription = "Clear filter",
+                                        contentDescription = null,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -194,14 +196,14 @@ fun HistoryScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
-                                    text = "No activities on this date",
+                                    text = stringResource(R.string.no_activities_on_date),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 TextButton(onClick = { viewModel.setDateFilter(null) }) {
-                                    Text("Show All Activities")
+                                    Text(stringResource(R.string.show_all_activities))
                                 }
                             }
                         }
@@ -243,7 +245,7 @@ fun StatsHeader(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "SUMMARY STATS",
+                text = stringResource(R.string.summary_stats),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -253,9 +255,9 @@ fun StatsHeader(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                StatItem("Today", todayStats, Modifier.weight(1f))
-                StatItem("This Week", weekStats, Modifier.weight(1f))
-                StatItem("This Month", monthStats, Modifier.weight(1f))
+                StatItem(stringResource(R.string.today_title), todayStats, Modifier.weight(1f))
+                StatItem(stringResource(R.string.this_week_title), weekStats, Modifier.weight(1f))
+                StatItem(stringResource(R.string.this_month_title), monthStats, Modifier.weight(1f))
             }
         }
     }
@@ -334,7 +336,7 @@ fun HistoryCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (session.activityType == ActivityType.RUNNING) "Running" else "Walking",
+                        text = if (session.activityType == ActivityType.RUNNING) stringResource(R.string.running_activity) else stringResource(R.string.walking_activity),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -367,7 +369,7 @@ fun HistoryCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No route data available",
+                            text = stringResource(R.string.no_route_data),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
@@ -385,7 +387,7 @@ fun HistoryCard(
                 // Distance
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "Distance",
+                        text = stringResource(R.string.distance_title),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -409,7 +411,7 @@ fun HistoryCard(
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "Duration",
+                        text = stringResource(R.string.duration_title),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -432,7 +434,7 @@ fun HistoryCard(
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "Avg Pace",
+                        text = stringResource(R.string.avg_pace_title),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -446,7 +448,7 @@ fun HistoryCard(
                 // Calories
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "Calories",
+                        text = stringResource(R.string.calories_title),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -538,11 +540,11 @@ fun OrangeTreeDashboard(
     }
 
     val levelName = when (level) {
-        1 -> "Sprout (Mầm cam)"
-        2 -> "Sapling (Cây con)"
-        3 -> "Young Tree (Cây nhỡ)"
-        4 -> "Flowering Tree (Đơm hoa)"
-        else -> "Fruiting Orange Tree (Trĩu quả)"
+        1 -> stringResource(R.string.sprout)
+        2 -> stringResource(R.string.sapling)
+        3 -> stringResource(R.string.young_tree)
+        4 -> stringResource(R.string.flowering_tree)
+        else -> stringResource(R.string.fruiting_tree)
     }
 
     val nextLevelXP = when (level) {
@@ -604,7 +606,7 @@ fun OrangeTreeDashboard(
             // Right side: Statistics and progress bar
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (currentStreak > 0) "🔥 $currentStreak-Day Streak!" else "😴 No Active Streak",
+                    text = if (currentStreak > 0) stringResource(R.string.streak_day_streak, currentStreak) else stringResource(R.string.no_active_streak),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = if (currentStreak > 0) Color(0xFFFF9800) else MaterialTheme.colorScheme.onSurfaceVariant
@@ -649,7 +651,7 @@ fun OrangeTreeDashboard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "$totalXP XP (MAX LEVEL)",
+                        text = stringResource(R.string.max_level_xp, totalXP),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF4CAF50)

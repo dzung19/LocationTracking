@@ -60,11 +60,11 @@ class WeatherRepository(
             val recommendation = when {
                 desc.contains("rain", ignoreCase = true) || 
                 desc.contains("drizzle", ignoreCase = true) || 
-                desc.contains("thunderstorm", ignoreCase = true) -> "Rainy weather ☔. Running indoors is recommended."
-                temp > 33 -> "Very hot! 🥵 Hydrate well and avoid peak sun hours."
-                temp < 10 -> "Chilly weather 🥶. Dress in layers!"
-                desc.contains("snow", ignoreCase = true) -> "Snowy! ❄️ Watch out for slippery roads."
-                else -> "Perfect weather for a run! 🏃‍♂️"
+                desc.contains("thunderstorm", ignoreCase = true) -> context.getString(com.example.R.string.weather_rainy)
+                temp > 33 -> context.getString(com.example.R.string.weather_hot)
+                temp < 10 -> context.getString(com.example.R.string.weather_chilly)
+                desc.contains("snow", ignoreCase = true) -> context.getString(com.example.R.string.weather_snowy)
+                else -> context.getString(com.example.R.string.weather_perfect)
             }
 
             val weatherData = WeatherData(

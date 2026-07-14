@@ -1,0 +1,96 @@
+<resources>
+    <!-- General -->
+    <string name="ok">OK</string>
+    <string name="cancel">Hủy</string>
+    <string name="settings">Cài đặt</string>
+    <string name="retry">Thử lại</string>
+    
+    <!-- Main Screen -->
+    <string name="body_weight_title">Trọng lượng cơ thể (kg)</string>
+    <string name="weight_label">Trọng lượng tính bằng kg</string>
+    <string name="recenter_map">Căn giữa bản đồ</string>
+    <string name="loc_permission_req">Yêu cầu quyền vị trí</string>
+    <string name="loc_permission_desc">Vui lòng cấp quyền vị trí để theo dõi hoạt động của bạn và xem vị trí hiện tại.</string>
+    <string name="grant_permission">Cấp quyền</string>
+    <string name="activity_tracker">Theo dõi hoạt động</string>
+    <string name="fg_updates_active">Đang cập nhật vị trí chạy</string>
+    <string name="system_idle">Hệ thống đang nghỉ</string>
+    <string name="tracking_active">ĐANG THEO DÕI</string>
+    <string name="tracking_stopped">ĐÃ DỪNG</string>
+    <string name="distance_label">QUÃNG ĐƯỜNG</string>
+    <string name="duration_label">THỜI LƯỢNG</string>
+    <string name="avg_pace_label">PACE TRUNG BÌNH</string>
+    <string name="pace_label">PACE</string>
+    <string name="time_label">THỜI GIAN</string>
+    <string name="calories_label">CALO</string>
+    <string name="elevation_label">ĐỘ CAO</string>
+    <string name="slope_label">ĐỘ DỐC</string>
+    <string name="walk">Đi bộ 🚶‍♂️</string>
+    <string name="run">Chạy 🏃‍♂️</string>
+    <string name="start">Bắt đầu</string>
+    <string name="stop">Dừng</string>
+    <string name="detecting_location">Đang dò vị trí...</string>
+    <string name="checking_weather">Đang kiểm tra thời tiết...</string>
+    <string name="weather_unavailable">Thời tiết không khả dụng</string>
+    
+    <!-- History Screen -->
+    <string name="activity_history">Lịch sử hoạt động</string>
+    <string name="filter_by_date">Lọc theo ngày</string>
+    <string name="no_activities_recorded">Chưa có hoạt động nào được ghi lại</string>
+    <string name="no_activities_desc">Các hoạt động chạy hoặc đi bộ của bạn sẽ xuất hiện ở đây.</string>
+    <string name="date_filter_prefix">Ngày: %s</string>
+    <string name="no_activities_on_date">Không có hoạt động nào trong ngày này</string>
+    <string name="show_all_activities">Hiển thị tất cả hoạt động</string>
+    
+    <!-- Orange Tree Streak Card -->
+    <string name="streak_day_streak">🔥 Chuỗi %d ngày chạy!</string>
+    <string name="no_active_streak">😴 Chưa có chuỗi chạy</string>
+    <string name="sprout">Mầm cam</string>
+    <string name="sapling">Cây con</string>
+    <string name="young_tree">Cây nhỡ</string>
+    <string name="flowering_tree">Đơm hoa</string>
+    <string name="fruiting_tree">Cây cam trĩu quả</string>
+    <string name="tree_level_label">Cấp độ cây: %s</string>
+    
+    <!-- Stats Header -->
+    <string name="today">HÔM NAY</string>
+    <string name="this_week">TUẦN NÀY</string>
+    <string name="this_month">THÁNG NÀY</string>
+    <string name="today_title">Hôm nay</string>
+    <string name="this_week_title">Tuần này</string>
+    <string name="this_month_title">Tháng này</string>
+    
+    <!-- History Screen Activity Names -->
+    <string name="running_activity">Chạy bộ</string>
+    <string name="walking_activity">Đi bộ</string>
+    <string name="no_route_data">Không có dữ liệu tuyến đường</string>
+    
+    <!-- UI Titles/Labels -->
+    <string name="distance_title">Quãng đường</string>
+    <string name="duration_title">Thời lượng</string>
+    <string name="avg_pace_title">Pace trung bình</string>
+    <string name="calories_title">Calo</string>
+    <string name="summary_stats">TỔNG HỢP THỐNG KÊ</string>
+    <string name="max_level_xp">%d XP (CẤP TỐI ĐA)</string>
+    
+    <!-- Detail Screen -->
+    <string name="activity_details">Chi tiết hoạt động</string>
+    <string name="back">Quay lại</string>
+    <string name="start_point">BẮT ĐẦU</string>
+    <string name="end_point">KẾT THÚC</string>
+    
+    <!-- Weather Advisor Recommendations -->
+    <string name="weather_rainy">Trời mưa ☔. Bạn nên chạy bộ trong nhà.</string>
+    <string name="weather_hot">Trời rất nóng! 🥵 Hãy uống đủ nước và tránh chạy giờ nắng gắt.</string>
+    <string name="weather_chilly">Trời lạnh 🥶. Hãy mặc nhiều lớp áo nhé!</string>
+    <string name="weather_snowy">Trời tuyết! ❄️ Hãy cẩn thận đường trơn trượt.</string>
+    <string name="weather_perfect">Thời tiết tuyệt vời để chạy bộ! 🏃‍♂️</string>
+    <string name="session_not_found">Không tìm thấy hoạt động</string>
+    <string name="running_workout">Buổi chạy bộ</string>
+    <string name="walking_workout">Buổi đi bộ</string>
+    <string name="session_date_time">%1$s lúc %2$s</string>
+    
+    <!-- Service Connecting -->
+    <string name="connecting_service">Đang kết nối dịch vụ...</string>
+    <string name="connecting_desc">Vui lòng đợi trong khi chúng tôi thiết lập kết nối với dịch vụ theo dõi chạy bộ ngầm...</string>
+</resources>

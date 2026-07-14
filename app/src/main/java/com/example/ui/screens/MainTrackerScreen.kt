@@ -23,6 +23,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.filled.Refresh
 import com.example.data.model.WeatherState
+import androidx.compose.ui.res.stringResource
+import com.example.R
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -86,13 +88,13 @@ fun MainTrackerScreen(
         AlertDialog(
             onDismissRequest = { showWeightDialog = false },
             icon = { Icon(Icons.Default.MonitorWeight, contentDescription = null) },
-            title = { Text("Body Weight (kg)") },
+            title = { Text(stringResource(R.string.body_weight_title)) },
             text = {
                 OutlinedTextField(
                     value = weightInput,
                     onValueChange = { weightInput = it },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    label = { Text("Weight in kg") }
+                    label = { Text(stringResource(R.string.weight_label)) }
                 )
             },
             confirmButton = {
@@ -107,12 +109,12 @@ fun MainTrackerScreen(
                         showWeightDialog = false
                     }
                 }) {
-                    Text("OK")
+                    Text(stringResource(R.string.ok))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showWeightDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -290,7 +292,7 @@ fun MainTrackerScreen(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 ) {
-                    Icon(Icons.Default.MyLocation, "Recenter Map")
+                    Icon(Icons.Default.MyLocation, stringResource(R.string.recenter_map))
                 }
             }
 
@@ -309,20 +311,20 @@ fun MainTrackerScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Warning,
-                            contentDescription = "Warning Icon",
+                            contentDescription = null,
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(48.dp)
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Location Permission Required",
+                            text = stringResource(R.string.loc_permission_req),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Please grant permission to track your activity and view your current location.",
+                            text = stringResource(R.string.loc_permission_desc),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
@@ -332,7 +334,7 @@ fun MainTrackerScreen(
                             onClick = onRequestPermission,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Grant Permission")
+                            Text(stringResource(R.string.grant_permission))
                         }
                     }
                 } else {
@@ -347,20 +349,20 @@ fun MainTrackerScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column {
                                 Text(
-                                    text = "Activity Tracker",
+                                    text = stringResource(R.string.activity_tracker),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = if (state.isTracking) "Foreground updates active" else "System idle",
+                                    text = if (state.isTracking) stringResource(R.string.fg_updates_active) else stringResource(R.string.system_idle),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             IconButton(onClick = { showWeightDialog = true }, modifier = Modifier.size(24.dp)) {
-                                Icon(Icons.Default.Settings, contentDescription = "Settings", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                                Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings), modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                             }
                         }
 
@@ -380,7 +382,7 @@ fun MainTrackerScreen(
                                     .background(badgeColor)
                             )
                             Text(
-                                text = if (state.isTracking) "TRACKING" else "STOPPED",
+                                text = if (state.isTracking) stringResource(R.string.tracking_active) else stringResource(R.string.tracking_stopped),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = badgeColor
@@ -397,7 +399,7 @@ fun MainTrackerScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        DetailItem("DISTANCE", "%.2f km".format(state.distanceMeters / 1000f), Modifier.weight(1f))
+                        DetailItem(stringResource(R.string.distance_label), "%.2f km".format(state.distanceMeters / 1000f), Modifier.weight(1f))
                         
                         val paceStr = if (state.distanceMeters > 0) {
                             val paceSecondsPerKm = (state.elapsedTimeSeconds / (state.distanceMeters / 1000f)).toInt()
@@ -407,7 +409,7 @@ fun MainTrackerScreen(
                         } else {
                             "-:-- /km"
                         }
-                        DetailItem("PACE", paceStr, Modifier.weight(1f))
+                        DetailItem(stringResource(R.string.pace_label), paceStr, Modifier.weight(1f))
                     }
                     
                     Spacer(Modifier.height(8.dp))
@@ -421,8 +423,8 @@ fun MainTrackerScreen(
                         val s = state.elapsedTimeSeconds % 60
                         val timeStr = if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
                         
-                        DetailItem("TIME", timeStr, Modifier.weight(1f))
-                        DetailItem("CALORIES", "${state.caloriesBurned} kcal", Modifier.weight(1f))
+                        DetailItem(stringResource(R.string.time_label), timeStr, Modifier.weight(1f))
+                        DetailItem(stringResource(R.string.calories_label), "${state.caloriesBurned} kcal", Modifier.weight(1f))
                     }
                     
                     Spacer(Modifier.height(8.dp))
@@ -431,9 +433,9 @@ fun MainTrackerScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        DetailItem("ELEVATION", "%.1f m".format(state.elevationMeters), Modifier.weight(1f))
+                        DetailItem(stringResource(R.string.elevation_label), "%.1f m".format(state.elevationMeters), Modifier.weight(1f))
                         val sign = if (state.slopePercentage > 0) "+" else ""
-                        DetailItem("SLOPE", "$sign%.1f %%".format(state.slopePercentage), Modifier.weight(1f))
+                        DetailItem(stringResource(R.string.slope_label), "$sign%.1f %%".format(state.slopePercentage), Modifier.weight(1f))
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -447,7 +449,7 @@ fun MainTrackerScreen(
                                     containerColor = if (isWalking) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                                     contentColor = if (isWalking) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                            ) { Text("Walk 🚶‍♂️") }
+                            ) { Text(stringResource(R.string.walk)) }
                             
                             Spacer(modifier = Modifier.width(8.dp))
                     
@@ -458,7 +460,7 @@ fun MainTrackerScreen(
                                     containerColor = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                                     contentColor = if (isRunning) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                            ) { Text("Run 🏃‍♂️") }
+                            ) { Text(stringResource(R.string.run)) }
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -480,9 +482,9 @@ fun MainTrackerScreen(
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f).height(48.dp)
                         ) {
-                            Icon(Icons.Default.PlayArrow, "Start", modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.PlayArrow, stringResource(R.string.start), modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Start", fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.start), fontWeight = FontWeight.SemiBold)
                         }
 
                         Button(
@@ -495,9 +497,9 @@ fun MainTrackerScreen(
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f).height(48.dp)
                         ) {
-                            Icon(Icons.Default.Stop, "Stop", modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Stop, stringResource(R.string.stop), modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Stop", fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.stop), fontWeight = FontWeight.SemiBold)
                         }
                     }
                     }
@@ -526,7 +528,7 @@ fun WeatherWidget(
         when (weatherState) {
             is WeatherState.Idle -> {
                 Box(modifier = Modifier.padding(12.dp)) {
-                    Text("Detecting location...", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.detecting_location), style = MaterialTheme.typography.bodySmall)
                 }
             }
             is WeatherState.Loading -> {
@@ -537,7 +539,7 @@ fun WeatherWidget(
                     CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Checking weather...",
+                        text = stringResource(R.string.checking_weather),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -557,7 +559,7 @@ fun WeatherWidget(
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Weather unavailable",
+                            text = stringResource(R.string.weather_unavailable),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.error
@@ -566,7 +568,7 @@ fun WeatherWidget(
                     IconButton(onClick = onRetry, modifier = Modifier.size(24.dp)) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
-                            contentDescription = "Retry",
+                            contentDescription = stringResource(R.string.retry),
                             modifier = Modifier.size(14.dp)
                         )
                     }
