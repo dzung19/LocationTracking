@@ -73,11 +73,12 @@ fun MainTrackerScreen(
 
     val weatherState by viewModel.weatherState.collectAsStateWithLifecycle()
 
-    // Fetch weather once when location coordinates transition from null to locked
-    LaunchedEffect(state.latitude != null, state.longitude != null) {
-        if (state.latitude != null && state.longitude != null) {
-            viewModel.fetchWeather(state.latitude, state.longitude)
-        }
+    // Fetch weather immediately using best available coordinates (GPS if active, fallback to last saved location)
+    val currentLat = state.latitude ?: savedLat
+    val currentLon = state.longitude ?: savedLon
+
+    LaunchedEffect(currentLat, currentLon) {
+        viewModel.fetchWeather(currentLat, currentLon)
     }
     
     if (showWeightDialog) {
