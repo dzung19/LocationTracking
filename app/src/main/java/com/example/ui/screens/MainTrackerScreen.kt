@@ -21,6 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material.icons.filled.Refresh
+import com.example.data.model.WeatherState
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -68,6 +70,15 @@ fun MainTrackerScreen(
     val userWeight = locationPrefs?.get(WEIGHT_KEY) ?: 70f
     var showWeightDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+
+    val weatherState by viewModel.weatherState.collectAsStateWithLifecycle()
+
+    // Fetch weather once when location coordinates transition from null to locked
+    LaunchedEffect(state.latitude != null, state.longitude != null) {
+        if (state.latitude != null && state.longitude != null) {
+            viewModel.fetchWeather(state.latitude, state.longitude)
+        }
+    }
     
     if (showWeightDialog) {
         var weightInput by remember { mutableStateOf(userWeight.toString()) }
@@ -213,7 +224,6 @@ fun MainTrackerScreen(
                             }
                         }
 
-                        // Pointer tip
                         Surface(
                             shape = androidx.compose.foundation.shape.GenericShape { size, _ ->
                                 moveTo(0f, 0f)
@@ -236,6 +246,24 @@ fun MainTrackerScreen(
                     points = state.pathPoints,
                     color = Color.Blue,
                     width = 12f
+                )
+            }
+        }
+
+        // Floating Weather Advisor at Top-Left (Overlay over map)
+        if (hasLocationPermission) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(top = contentPadding.calculateTopPadding() + 16.dp, start = 16.dp)
+            ) {
+                WeatherWidget(
+                    weatherState = weatherState,
+                    onRetry = {
+                        if (state.latitude != null && state.longitude != null) {
+                            viewModel.fetchWeather(state.latitude, state.longitude)
+                        }
+                    }
                 )
             }
         }
@@ -472,6 +500,120 @@ fun MainTrackerScreen(
                         }
                     }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WeatherWidget(
+    weatherState: WeatherState,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        modifier = modifier
+            .widthIn(max = 280.dp)
+            .wrapContentHeight()
+    ) {
+        when (weatherState) {
+            is WeatherState.Idle -> {
+                Box(modifier = Modifier.padding(12.dp)) {
+                    Text("Detecting location...", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            is WeatherState.Loading -> {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Checking weather...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            is WeatherState.Error -> {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Weather unavailable",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    IconButton(onClick = onRetry, modifier = Modifier.size(24.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Retry",
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+            }
+            is WeatherState.Success -> {
+                val weather = weatherState.weather
+                val emoji = when {
+                    weather.icon.startsWith("01") -> "☀️"
+                    weather.icon.startsWith("02") -> "⛅"
+                    weather.icon.startsWith("03") || weather.icon.startsWith("04") -> "☁️"
+                    weather.icon.startsWith("09") || weather.icon.startsWith("10") -> "🌧️"
+                    weather.icon.startsWith("11") -> "⛈️"
+                    weather.icon.startsWith("13") -> "❄️"
+                    weather.icon.startsWith("50") -> "🌫️"
+                    else -> "🌤️"
+                }
+
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = emoji,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Column {
+                            Text(
+                                text = "${weather.temp.toInt()}°C",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = weather.description.replaceFirstChar { it.titlecase() },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = weather.recommendation,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
         }

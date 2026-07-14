@@ -2,6 +2,8 @@ package com.example
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.model.WeatherState
+import com.example.data.repository.WeatherRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -9,7 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class LocationViewModel : ViewModel() {
+class LocationViewModel(private val weatherRepository: WeatherRepository) : ViewModel() {
 
     private var activeService: LocationTrackingService? = null
     private var serviceCollectorJob: Job? = null
@@ -21,6 +23,23 @@ class LocationViewModel : ViewModel() {
     // Tracks if the service is currently bound and available
     private val _isServiceBound = MutableStateFlow(false)
     val isServiceBound: StateFlow<Boolean> = _isServiceBound.asStateFlow()
+
+    // Weather state for UI representation
+    private val _weatherState = MutableStateFlow<WeatherState>(WeatherState.Idle)
+    val weatherState: StateFlow<WeatherState> = _weatherState.asStateFlow()
+
+    /**
+     * Fetches current weather for given latitude and longitude with repository caching.
+     */
+    fun fetchWeather(lat: Double, lon: Double) {
+        if (_weatherState.value is WeatherState.Loading) return
+        _weatherState.value = WeatherState.Loading
+        viewModelScope.launch {
+            weatherRepository.getWeather(lat, lon)
+                .onSuccess { _weatherState.value = WeatherState.Success(it) }
+                .onFailure { _weatherState.value = WeatherState.Error(it.message ?: "Unknown error") }
+        }
+    }
 
     /**
      * Called by the Activity when the LocationTrackingService is connected or disconnected.
