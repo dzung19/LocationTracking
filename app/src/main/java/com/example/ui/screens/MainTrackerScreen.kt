@@ -130,7 +130,7 @@ fun MainTrackerScreen(
     }
 
     if (showGhostDialog) {
-        val dateFormat = remember { SimpleDateFormat("EEE, MMM dd, yyyy • hh:mm a", Locale.getDefault()) }
+        val dateFormat = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
         AlertDialog(
             onDismissRequest = { showGhostDialog = false },
             title = { Text(stringResource(R.string.select_ghost)) },
@@ -144,51 +144,82 @@ fun MainTrackerScreen(
                         )
                     }
                 } else {
+                    val grouped = remember(allSessions) {
+                        allSessions.groupBy { session ->
+                            val date = Date(session.startTimeInMillis)
+                            val fmt = SimpleDateFormat("EEEE, dd MMM yyyy", Locale.getDefault())
+                            fmt.format(date)
+                        }
+                    }
+
                     LazyColumn(
                         modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(allSessions, key = { it.id }) { session ->
-                            val dateStr = dateFormat.format(Date(session.startTimeInMillis))
-                            val durationSeconds = if (session.endTimeInMillis != null) {
-                                (session.endTimeInMillis - session.startTimeInMillis) / 1000
-                            } else {
-                                0L
-                            }
-                            val mins = durationSeconds / 60
-                            val secs = durationSeconds % 60
-                            val durationStr = "%02d:%02d".format(mins, secs)
-                            
-                            val label = if (session.activityType == ActivityType.RUNNING) {
-                                stringResource(R.string.running_activity)
-                            } else {
-                                stringResource(R.string.walking_activity)
-                            }
-                            
-                            val isSelected = state.selectedGhostSessionId == session.id
-
-                            Card(
-                                onClick = {
-                                    viewModel.setGhostSession(session.id)
-                                    showGhostDialog = false
-                                },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Text(
-                                        text = "$label - %.2f km".format(session.totalDistanceMeters / 1000f),
-                                        fontWeight = FontWeight.Bold,
-                                        style = MaterialTheme.typography.bodyMedium
+                        grouped.forEach { (dateHeader, sessionsInDay) ->
+                            item {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.weight(1f),
+                                        color = MaterialTheme.colorScheme.outlineVariant
                                     )
                                     Text(
-                                        text = "$dateStr • $durationStr",
+                                        text = "  $dateHeader  ",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                                     )
+                                    HorizontalDivider(
+                                        modifier = Modifier.weight(1f),
+                                        color = MaterialTheme.colorScheme.outlineVariant
+                                    )
+                                }
+                            }
+                            items(sessionsInDay, key = { it.id }) { session ->
+                                val dateStr = dateFormat.format(Date(session.startTimeInMillis))
+                                val durationSeconds = if (session.endTimeInMillis != null) {
+                                    (session.endTimeInMillis - session.startTimeInMillis) / 1000
+                                } else {
+                                    0L
+                                }
+                                val mins = durationSeconds / 60
+                                val secs = durationSeconds % 60
+                                val durationStr = "%02d:%02d".format(mins, secs)
+                                
+                                val label = if (session.activityType == ActivityType.RUNNING) {
+                                    stringResource(R.string.running_activity)
+                                } else {
+                                    stringResource(R.string.walking_activity)
+                                }
+                                
+                                val isSelected = state.selectedGhostSessionId == session.id
+
+                                Card(
+                                    onClick = {
+                                        viewModel.setGhostSession(session.id)
+                                        showGhostDialog = false
+                                    },
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text(
+                                            text = "$label - %.2f km".format(session.totalDistanceMeters / 1000f),
+                                            fontWeight = FontWeight.Bold,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        Text(
+                                            text = "$dateStr • $durationStr",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
                             }
                         }
