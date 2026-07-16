@@ -174,6 +174,9 @@ class LocationTrackingService : Service(), SensorEventListener {
                     timeDeltaMs = location.time - prevLoc.time
                     accumulatedDistance += distanceDelta
                 }
+                if (previousLocation == null) {
+                    alignGhostRoute(location.latitude, location.longitude)
+                }
                 previousLocation = location
 
                 val latLng = LatLng(location.latitude, location.longitude)
@@ -528,6 +531,37 @@ class LocationTrackingService : Service(), SensorEventListener {
         
         val last = ghostPoints.last()
         return InterpolatedGhostState(last.latLng.latitude, last.latLng.longitude, last.accumulatedDistanceMeters)
+    }
+
+    private fun alignGhostRoute(userStartLat: Double, userStartLon: Double) {
+        val firstGhost = ghostPoints.firstOrNull() ?: return
+        
+        val results = FloatArray(1)
+        Location.distanceBetween(
+            userStartLat, userStartLon,
+            firstGhost.latLng.latitude, firstGhost.latLng.longitude,
+            results
+        )
+        val distance = results[0]
+        
+        // If the start points are more than 150m apart, offset the whole path to align with user start
+        if (distance > 150f) {
+            val latOffset = userStartLat - firstGhost.latLng.latitude
+            val lonOffset = userStartLon - firstGhost.latLng.longitude
+            
+            ghostPoints = ghostPoints.map { pt ->
+                pt.copy(
+                    latLng = LatLng(pt.latLng.latitude + latOffset, pt.latLng.longitude + lonOffset)
+                )
+            }
+            
+            val pathLatLngs = ghostPoints.map { it.latLng }
+            _trackingState.update { it.copy(
+                ghostPathPoints = pathLatLngs,
+                ghostLatitude = pathLatLngs.firstOrNull()?.latitude,
+                ghostLongitude = pathLatLngs.firstOrNull()?.longitude
+            ) }
+        }
     }
 
     override fun onDestroy() {
