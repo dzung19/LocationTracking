@@ -88,6 +88,9 @@ class LocationTrackingService : Service(), SensorEventListener {
     private var startTimeMillis: Long = 0L
     private var currentWeightKg: Float = 70f
     
+    // Ghost Runner data
+    private var ghostPoints = listOf<GhostPoint>()
+    
     // Barometer tracking
     private var currentElevation: Float = 0f
     private var lastSlopeDistance: Float = 0f
@@ -345,10 +348,22 @@ class LocationTrackingService : Service(), SensorEventListener {
                 delay(1000L)
                 val elapsedSeconds = (System.currentTimeMillis() - startTimeMillis) / 1000
                 
-                _trackingState.update { state ->
-                    state.copy(
-                        elapsedTimeSeconds = elapsedSeconds
-                    )
+                if (ghostPoints.isNotEmpty()) {
+                    val ghostState = interpolateGhost(elapsedSeconds, ghostPoints)
+                    _trackingState.update { state ->
+                        state.copy(
+                            elapsedTimeSeconds = elapsedSeconds,
+                            ghostLatitude = ghostState.latitude,
+                            ghostLongitude = ghostState.longitude,
+                            ghostDistanceMeters = ghostState.distanceMeters
+                        )
+                    }
+                } else {
+                    _trackingState.update { state ->
+                        state.copy(
+                            elapsedTimeSeconds = elapsedSeconds
+                        )
+                    }
                 }
             }
         }
@@ -434,9 +449,100 @@ class LocationTrackingService : Service(), SensorEventListener {
         }
     }
 
+    fun setGhostSession(sessionId: Long?) {
+        if (sessionId == null) {
+            ghostPoints = emptyList()
+            _trackingState.update { it.copy(
+                selectedGhostSessionId = null,
+                ghostLatitude = null,
+                ghostLongitude = null,
+                ghostDistanceMeters = 0f,
+                ghostPathPoints = emptyList()
+            ) }
+            return
+        }
+        
+        serviceScope.launch {
+            val points = runDao.getLocationPointsForSessionOnce(sessionId)
+            val sorted = points.sortedBy { it.timestamp }
+            val ghostStartTime = sorted.firstOrNull()?.timestamp ?: 0L
+            val pointsList = mutableListOf<GhostPoint>()
+            var dist = 0f
+            var prevPoint: LocationPoint? = null
+            sorted.forEach { pt ->
+                prevPoint?.let { prev ->
+                    val results = FloatArray(1)
+                    Location.distanceBetween(prev.latitude, prev.longitude, pt.latitude, pt.longitude, results)
+                    dist += results[0]
+                }
+                val elapsed = (pt.timestamp - ghostStartTime) / 1000
+                pointsList.add(GhostPoint(LatLng(pt.latitude, pt.longitude), elapsed, dist))
+                prevPoint = pt
+            }
+            ghostPoints = pointsList
+            
+            val pathLatLngs = pointsList.map { it.latLng }
+            _trackingState.update { it.copy(
+                selectedGhostSessionId = sessionId,
+                ghostPathPoints = pathLatLngs,
+                ghostLatitude = pathLatLngs.firstOrNull()?.latitude,
+                ghostLongitude = pathLatLngs.firstOrNull()?.longitude,
+                ghostDistanceMeters = 0f
+            ) }
+        }
+    }
+
+    private fun interpolateGhost(elapsedSeconds: Long, ghostPoints: List<GhostPoint>): InterpolatedGhostState {
+        if (ghostPoints.isEmpty()) {
+            return InterpolatedGhostState(null, null, 0f)
+        }
+        
+        if (elapsedSeconds <= ghostPoints.first().elapsedSeconds) {
+            val first = ghostPoints.first()
+            return InterpolatedGhostState(first.latLng.latitude, first.latLng.longitude, first.accumulatedDistanceMeters)
+        }
+        
+        if (elapsedSeconds >= ghostPoints.last().elapsedSeconds) {
+            val last = ghostPoints.last()
+            return InterpolatedGhostState(last.latLng.latitude, last.latLng.longitude, last.accumulatedDistanceMeters)
+        }
+        
+        for (i in 0 until ghostPoints.size - 1) {
+            val p1 = ghostPoints[i]
+            val p2 = ghostPoints[i + 1]
+            if (elapsedSeconds >= p1.elapsedSeconds && elapsedSeconds <= p2.elapsedSeconds) {
+                val t1 = p1.elapsedSeconds
+                val t2 = p2.elapsedSeconds
+                val duration = t2 - t1
+                val fraction = if (duration > 0) (elapsedSeconds - t1).toFloat() / duration else 0f
+                
+                val lat = p1.latLng.latitude + fraction * (p2.latLng.latitude - p1.latLng.latitude)
+                val lon = p1.latLng.longitude + fraction * (p2.latLng.longitude - p1.latLng.longitude)
+                val dist = p1.accumulatedDistanceMeters + fraction * (p2.accumulatedDistanceMeters - p1.accumulatedDistanceMeters)
+                
+                return InterpolatedGhostState(lat, lon, dist)
+            }
+        }
+        
+        val last = ghostPoints.last()
+        return InterpolatedGhostState(last.latLng.latitude, last.latLng.longitude, last.accumulatedDistanceMeters)
+    }
+
     override fun onDestroy() {
         timerJob?.cancel()
         fusedLocationClient.removeLocationUpdates(locationCallback)
         super.onDestroy()
     }
 }
+
+data class GhostPoint(
+    val latLng: LatLng,
+    val elapsedSeconds: Long,
+    val accumulatedDistanceMeters: Float
+)
+
+data class InterpolatedGhostState(
+    val latitude: Double?,
+    val longitude: Double?,
+    val distanceMeters: Float
+)

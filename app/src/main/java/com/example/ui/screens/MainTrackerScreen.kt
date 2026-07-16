@@ -22,6 +22,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.example.data.model.WeatherState
 import androidx.compose.ui.res.stringResource
 import com.example.R
@@ -30,6 +36,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.LocationTrackingState
 import com.example.LocationViewModel
@@ -71,6 +78,8 @@ fun MainTrackerScreen(
     val savedLon = locationPrefs?.get(LON_KEY) ?: 106.660172
     val userWeight = locationPrefs?.get(WEIGHT_KEY) ?: 70f
     var showWeightDialog by remember { mutableStateOf(false) }
+    var showGhostDialog by remember { mutableStateOf(false) }
+    val allSessions by viewModel.allSessions.collectAsStateWithLifecycle(emptyList())
     val coroutineScope = rememberCoroutineScope()
 
     val weatherState by viewModel.weatherState.collectAsStateWithLifecycle()
@@ -114,6 +123,81 @@ fun MainTrackerScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showWeightDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showGhostDialog) {
+        val dateFormat = remember { SimpleDateFormat("EEE, MMM dd, yyyy • hh:mm a", Locale.getDefault()) }
+        AlertDialog(
+            onDismissRequest = { showGhostDialog = false },
+            title = { Text(stringResource(R.string.select_ghost)) },
+            text = {
+                if (allSessions.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = stringResource(R.string.no_ghost_available),
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(allSessions, key = { it.id }) { session ->
+                            val dateStr = dateFormat.format(Date(session.startTimeInMillis))
+                            val durationSeconds = if (session.endTimeInMillis != null) {
+                                (session.endTimeInMillis - session.startTimeInMillis) / 1000
+                            } else {
+                                0L
+                            }
+                            val mins = durationSeconds / 60
+                            val secs = durationSeconds % 60
+                            val durationStr = "%02d:%02d".format(mins, secs)
+                            
+                            val label = if (session.activityType == ActivityType.RUNNING) {
+                                stringResource(R.string.running_activity)
+                            } else {
+                                stringResource(R.string.walking_activity)
+                            }
+                            
+                            val isSelected = state.selectedGhostSessionId == session.id
+
+                            Card(
+                                onClick = {
+                                    viewModel.setGhostSession(session.id)
+                                    showGhostDialog = false
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = "$label - %.2f km".format(session.totalDistanceMeters / 1000f),
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Text(
+                                        text = "$dateStr • $durationStr",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showGhostDialog = false }) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -251,6 +335,38 @@ fun MainTrackerScreen(
                     width = 12f
                 )
             }
+
+            // Draw ghost route polyline if loaded
+            if (state.ghostPathPoints.isNotEmpty()) {
+                Polyline(
+                    points = state.ghostPathPoints,
+                    color = Color(0xFFFF9800).copy(alpha = 0.45f), // Semi-transparent Amber/Orange
+                    width = 8f
+                )
+            }
+
+            // Draw ghost runner marker if active and coordinates exist
+            if (state.isTracking && state.ghostLatitude != null && state.ghostLongitude != null) {
+                MarkerComposable(
+                    state = rememberMarkerState(
+                        position = LatLng(state.ghostLatitude, state.ghostLongitude)
+                    ),
+                    anchor = Offset(0.5f, 0.5f)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xFFFF9800).copy(alpha = 0.85f), // Semi-transparent Orange
+                        contentColor = Color.White,
+                        tonalElevation = 6.dp,
+                        shadowElevation = 6.dp,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("👻", fontSize = 16.sp)
+                        }
+                    }
+                }
+            }
         }
 
         // Floating Weather Advisor at Top-Left (Overlay over map)
@@ -267,6 +383,20 @@ fun MainTrackerScreen(
                             viewModel.fetchWeather(state.latitude, state.longitude)
                         }
                     }
+                )
+            }
+        }
+
+        // Floating Ghost Comparison Card at Top-Right
+        if (state.isTracking && state.selectedGhostSessionId != null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = contentPadding.calculateTopPadding() + 16.dp, end = 16.dp)
+            ) {
+                GhostComparisonWidget(
+                    userDistance = state.distanceMeters,
+                    ghostDistance = state.ghostDistanceMeters
                 )
             }
         }
@@ -462,6 +592,52 @@ fun MainTrackerScreen(
                                 )
                             ) { Text(stringResource(R.string.run)) }
                         }
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Ghost selector chip / button
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (state.selectedGhostSessionId == null) {
+                                Button(
+                                    onClick = { showGhostDialog = true },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.height(36.dp)
+                                ) {
+                                    Icon(Icons.Default.DirectionsRun, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(stringResource(R.string.select_ghost), style = MaterialTheme.typography.labelMedium)
+                                }
+                            } else {
+                                val selectedSession = allSessions.find { it.id == state.selectedGhostSessionId }
+                                selectedSession?.let { sess ->
+                                    InputChip(
+                                        selected = true,
+                                        onClick = { viewModel.setGhostSession(null) },
+                                        label = {
+                                            val distKm = sess.totalDistanceMeters / 1000f
+                                            Text(
+                                                text = stringResource(R.string.ghost_active, "%.2f km".format(distKm)),
+                                                style = MaterialTheme.typography.labelMedium
+                                            )
+                                        },
+                                        trailingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Clear Ghost",
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                        }
                         Spacer(modifier = Modifier.height(8.dp))
                     }
 
@@ -619,6 +795,60 @@ fun WeatherWidget(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun GhostComparisonWidget(
+    userDistance: Float,
+    ghostDistance: Float,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        modifier = modifier
+            .widthIn(max = 200.dp)
+            .wrapContentHeight()
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = stringResource(R.string.ghost_comparison_header),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            val diff = userDistance - ghostDistance
+            val diffColor = if (diff >= 0) Color(0xFF4CAF50) else Color(0xFFF44336)
+            val diffText = if (diff >= 0) {
+                stringResource(R.string.ahead_by, diff)
+            } else {
+                stringResource(R.string.behind_by, -diff)
+            }
+            
+            Text(
+                text = diffText,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold,
+                color = diffColor
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            Text(
+                text = if (diff >= 0) "🏆 Leading" else "⚠️ Lagging",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold,
+                color = if (diff >= 0) Color(0xFF4CAF50) else Color(0xFFFF9800)
+            )
         }
     }
 }

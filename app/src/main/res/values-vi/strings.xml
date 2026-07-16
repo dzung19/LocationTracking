@@ -93,4 +93,15 @@
     <!-- Service Connecting -->
     <string name="connecting_service">Đang kết nối dịch vụ...</string>
     <string name="connecting_desc">Vui lòng đợi trong khi chúng tôi thiết lập kết nối với dịch vụ theo dõi chạy bộ ngầm...</string>
+    
+    <!-- Ghost Runner -->
+    <string name="ghost_runner">Đua với bóng</string>
+    <string name="select_ghost">Chọn đối thủ đua</string>
+    <string name="no_ghost_available">Chưa có lịch sử chạy bộ để làm đối thủ đua</string>
+    <string name="ghost_active">Đang đua: %s</string>
+    <string name="ahead_by">+%1$.1f m</string>
+    <string name="behind_by">-%1$.1f m</string>
+    <string name="ghost_comparison">So sánh đối thủ</string>
+    <string name="running_alone">Chạy một mình</string>
+    <string name="ghost_comparison_header">BẠN VS ĐỐI THỦ</string>
 </resources>

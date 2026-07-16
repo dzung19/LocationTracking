@@ -35,8 +35,8 @@ val appModule = module {
     // Provide WeatherRepository
     single { WeatherRepository(get(), androidContext(), get()) }
     
-    // Provide LocationViewModel with injected WeatherRepository
-    viewModel { LocationViewModel(get()) }
+    // Provide LocationViewModel with injected WeatherRepository and RunDao
+    viewModel { LocationViewModel(get(), get()) }
     
     // Provide HistoryViewModel
     viewModel { HistoryViewModel(get()) }

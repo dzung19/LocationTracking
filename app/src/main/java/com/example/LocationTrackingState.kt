@@ -23,5 +23,12 @@ data class LocationTrackingState(
     val elevationMeters: Float = 0f,
     val slopePercentage: Float = 0f,
     val activityType: ActivityType = ActivityType.RUNNING,
-    val pathPoints: List<LatLng> = emptyList()
+    val pathPoints: List<LatLng> = emptyList(),
+    
+    // Ghost Runner fields
+    val selectedGhostSessionId: Long? = null,
+    val ghostPathPoints: List<LatLng> = emptyList(),
+    val ghostLatitude: Double? = null,
+    val ghostLongitude: Double? = null,
+    val ghostDistanceMeters: Float = 0f
 )

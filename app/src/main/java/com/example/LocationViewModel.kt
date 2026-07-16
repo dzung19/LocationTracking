@@ -5,13 +5,21 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.model.WeatherState
 import com.example.data.repository.WeatherRepository
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.example.data.database.RunDao
+import com.example.data.database.RunSession
 
-class LocationViewModel(private val weatherRepository: WeatherRepository) : ViewModel() {
+class LocationViewModel(
+    private val weatherRepository: WeatherRepository,
+    private val runDao: RunDao
+) : ViewModel() {
+
+    val allSessions: Flow<List<RunSession>> = runDao.getAllRunSessions()
 
     private var activeService: LocationTrackingService? = null
     private var serviceCollectorJob: Job? = null
@@ -83,5 +91,12 @@ class LocationViewModel(private val weatherRepository: WeatherRepository) : View
      */
     fun setActivityType(type: com.example.data.database.ActivityType) {
         activeService?.setActivityType(type)
+    }
+
+    /**
+     * Delegates setting the ghost session to the active service.
+     */
+    fun setGhostSession(sessionId: Long?) {
+        activeService?.setGhostSession(sessionId)
     }
 }

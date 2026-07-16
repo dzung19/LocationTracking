@@ -95,4 +95,15 @@
     <!-- Service Connecting -->
     <string name="connecting_service">Connecting to Service...</string>
     <string name="connecting_desc">Please wait while we establish connection to the background tracking service...</string>
+    
+    <!-- Ghost Runner -->
+    <string name="ghost_runner">Ghost Runner</string>
+    <string name="select_ghost">Select Ghost Runner</string>
+    <string name="no_ghost_available">No previous runs available to select as ghost</string>
+    <string name="ghost_active">Ghost active: %s</string>
+    <string name="ahead_by">+%1$.1f m</string>
+    <string name="behind_by">-%1$.1f m</string>
+    <string name="ghost_comparison">Ghost Comparison</string>
+    <string name="running_alone">Running Alone</string>
+    <string name="ghost_comparison_header">YOU VS GHOST</string>
 </resources>
