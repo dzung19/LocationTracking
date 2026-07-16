@@ -397,16 +397,18 @@ class LocationTrackingService : Service(), SensorEventListener {
                 }
             }
             currentSessionId = null
-        }
 
-        _trackingState.update {
-            it.copy(
-                isTracking = false,
-                errorMessage = "Tracking stopped by user"
-            )
+            // Shift state updates and stopSelf to Main dispatcher only after the DB write has succeeded
+            withContext(Dispatchers.Main) {
+                _trackingState.update {
+                    it.copy(
+                        isTracking = false,
+                        errorMessage = "Tracking stopped by user"
+                    )
+                }
+                stopSelf()
+            }
         }
-        
-        stopSelf()
     }
 
     private fun updateNotificationContent(location: Location) {
