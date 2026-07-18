@@ -13,6 +13,12 @@ import org.koin.dsl.module
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import com.example.data.network.NetworkConnectionInterceptor
+import com.example.data.network.WeatherApiKeyInterceptor
+import com.example.data.network.ErrorInterceptor
+
 val appModule = module {
     // Provide AppDatabase singleton
     single { AppDatabase.getDatabase(androidContext()) }
@@ -23,10 +29,23 @@ val appModule = module {
     // Provide Moshi
     single { Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build() }
 
+    // Provide OkHttpClient with custom interceptors
+    single {
+        OkHttpClient.Builder()
+            .addInterceptor(NetworkConnectionInterceptor(androidContext()))
+            .addInterceptor(WeatherApiKeyInterceptor())
+            .addInterceptor(ErrorInterceptor())
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.BODY
+            })
+            .build()
+    }
+
     // Provide OpenWeatherApi
     single<OpenWeatherApi> {
         Retrofit.Builder()
             .baseUrl("https://api.openweathermap.org/data/2.5/")
+            .client(get())
             .addConverterFactory(MoshiConverterFactory.create(get()))
             .build()
             .create(OpenWeatherApi::class.java)

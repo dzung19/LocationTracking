@@ -46,12 +46,7 @@ class WeatherRepository(
 
         // Fetch from API
         try {
-            val apiKey = BuildConfig.OPENWEATHER_API_KEY
-            if (apiKey.isBlank() || apiKey == "dummy_key") {
-                return@withContext Result.failure(Exception("Invalid API key"))
-            }
-
-            val response = api.getCurrentWeather(lat, lon, apiKey)
+            val response = api.getCurrentWeather(lat, lon)
             val temp = response.main.temp
             val humidity = response.main.humidity
             val desc = response.weather.firstOrNull()?.description ?: "clear sky"
