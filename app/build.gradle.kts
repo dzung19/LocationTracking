@@ -8,11 +8,11 @@ plugins {
 }
 
 android {
-  namespace = "com.example"
+  namespace = "com.dzung.runner.locationtracker"
   compileSdk = 36
 
   defaultConfig {
-    applicationId = "com.aistudio.locationtracker.gpsmap"
+    applicationId = "com.dzung.runner.locationtracker"
     minSdk = 24
     targetSdk = 36
     versionCode = 1
