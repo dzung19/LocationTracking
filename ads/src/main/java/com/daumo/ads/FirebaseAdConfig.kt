@@ -7,8 +7,10 @@ import com.google.gson.reflect.TypeToken
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings
 import kotlinx.coroutines.tasks.await
 
+import androidx.annotation.Keep
 import com.google.gson.annotations.SerializedName
 
+@Keep
 data class AdConfigSet(
     @SerializedName("appOpenAdId")
     val appOpenAdId: String = "",

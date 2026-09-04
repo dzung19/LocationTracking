@@ -145,3 +145,36 @@
 -keep class com.dzung.runner.locationtracker.LocationTrackingService { *; }
 -keep class com.dzung.runner.locationtracker.LocationTrackingService$* { *; }
 -keep class * extends android.os.Binder { *; }
+
+# -----------------------------------------------------------------------------
+# 10. Ads Module, Google Mobile Ads, Billing & Gson
+# -----------------------------------------------------------------------------
+# Keep Ads module classes, data models, and constructors
+-keep class com.daumo.ads.** { *; }
+-keepclassmembers class com.daumo.ads.** { *; }
+-keepclasseswithmembers class com.daumo.ads.** {
+    <init>(...);
+}
+
+# Google Mobile Ads SDK
+-keep class com.google.android.gms.ads.** { *; }
+-keep interface com.google.android.gms.ads.** { *; }
+-dontwarn com.google.android.gms.ads.**
+
+# Google Play Billing Client
+-keep class com.android.billingclient.** { *; }
+-keep interface com.android.billingclient.** { *; }
+-dontwarn com.android.billingclient.**
+
+# Gson Serialization (for AdConfigSet & Remote Config)
+-keep class com.google.gson.** { *; }
+-keep interface com.google.gson.** { *; }
+-keepclassmembers class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+-keepclassmembers enum * { *; }
+
+# Firebase Remote Config
+-keep class com.google.firebase.remoteconfig.** { *; }
+-dontwarn com.google.firebase.remoteconfig.**
+
