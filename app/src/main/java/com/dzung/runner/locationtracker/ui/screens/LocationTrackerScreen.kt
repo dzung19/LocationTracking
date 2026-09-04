@@ -42,6 +42,7 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.annotation.Keep
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
@@ -56,15 +57,19 @@ import androidx.compose.material.icons.filled.MonitorWeight
 val Context.dataStore by preferencesDataStore(name = "LocationPrefs")
 val WEIGHT_KEY = floatPreferencesKey("user_weight")
 
+@Keep
 @Serializable
 sealed interface ScreenKey : NavKey
 
+@Keep
 @Serializable
 object TrackerKey : ScreenKey
 
+@Keep
 @Serializable
 object HistoryKey : ScreenKey
 
+@Keep
 @Serializable
 data class DetailKey(val sessionId: Long) : ScreenKey
 @Composable

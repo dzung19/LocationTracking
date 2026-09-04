@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
@@ -5,51 +7,71 @@ plugins {
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
   alias(libs.plugins.kotlin.serialization)
+  alias(libs.plugins.google.services)
 }
-
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+  localProperties.load(localPropertiesFile.inputStream())
+}
 android {
   namespace = "com.dzung.runner.locationtracker"
-  compileSdk = 36
+  compileSdk = 37
 
   defaultConfig {
     applicationId = "com.dzung.runner.locationtracker"
     minSdk = 24
-    targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    targetSdk = 37
+    versionCode = 2
+    versionName = "1.1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "dummy_key"
-    ksp {
-      arg("room.schemaLocation", "$projectDir/schemas")
-    }
   }
 
   signingConfigs {
-    create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = "upload"
-      keyPassword = System.getenv("KEY_PASSWORD")
+    val releaseKeystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
+    val releaseKeystoreFile = file(releaseKeystorePath)
+    if (releaseKeystoreFile.exists()) {
+      create("release") {
+        storeFile = releaseKeystoreFile
+        storePassword = System.getenv("STORE_PASSWORD")
+        keyAlias = "upload"
+        keyPassword = System.getenv("KEY_PASSWORD")
+      }
     }
-    create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
+    val debugKeystoreFile = file("${rootDir}/debug.keystore")
+    if (debugKeystoreFile.exists()) {
+      create("debugConfig") {
+        storeFile = debugKeystoreFile
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
+      }
     }
   }
 
   buildTypes {
     release {
       isCrunchPngs = false
-      isMinifyEnabled = false
+      isMinifyEnabled = true
+      isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      signingConfig = signingConfigs.getByName("release")
+      buildConfigField("String", "APP_OPEN_AD_ID", "\"${localProperties.getProperty("APP_OPEN_AD_ID")}\"")
+      buildConfigField("String", "BANNER_AD_ID", "\"${localProperties.getProperty("BANNER_AD_ID")}\"")
+      buildConfigField("String", "INTERSTITIAL_AD_ID", "\"${localProperties.getProperty("INTERSTITIAL_AD_ID")}\"")
+      buildConfigField("String", "REMOVE_ADS_SKU", "\"remove_ads_sku\"")
+      buildConfigField("Boolean", "ADS_DISABLED", "false")
+      manifestPlaceholders["caAppPubId"] = "ca-app-pub-9439921169677011~6105322422"
+      signingConfigs.findByName("release")?.let {
+        signingConfig = it
+      }
     }
     debug {
-      signingConfig = signingConfigs.getByName("debugConfig")
+      buildConfigField("Boolean", "ADS_DISABLED", "false")
+      signingConfigs.findByName("debugConfig")?.let {
+        signingConfig = it
+      }
     }
   }
   compileOptions {
@@ -61,6 +83,10 @@ android {
     buildConfig = true
   }
   testOptions { unitTests { isIncludeAndroidResources = true } }
+}
+
+ksp {
+  arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 
@@ -127,8 +153,11 @@ dependencies {
   androidTestImplementation(libs.androidx.runner)
   debugImplementation(libs.androidx.compose.ui.test.manifest)
   debugImplementation(libs.androidx.compose.ui.tooling)
-  "ksp"(libs.androidx.room.compiler)
-  "ksp"(libs.moshi.kotlin.codegen)
+  ksp(libs.androidx.room.compiler)
+  ksp(libs.moshi.kotlin.codegen)
+
+  implementation(libs.googleAds)
+  implementation(project(":ads"))
 }
 
 

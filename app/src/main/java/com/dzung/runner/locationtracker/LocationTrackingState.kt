@@ -1,5 +1,6 @@
 package com.dzung.runner.locationtracker
 
+import androidx.annotation.Keep
 import com.dzung.runner.locationtracker.data.database.ActivityType
 import com.google.android.gms.maps.model.LatLng
 
@@ -8,6 +9,7 @@ import com.google.android.gms.maps.model.LatLng
  * This class is exposed as a StateFlow by the LocationTrackingService
  * so that the Compose UI can reactively observe and render updates.
  */
+@Keep
 data class LocationTrackingState(
     val isTracking: Boolean = false,
     val latitude: Double? = null,

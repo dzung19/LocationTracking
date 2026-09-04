@@ -1,8 +1,10 @@
 package com.dzung.runner.locationtracker.data.database
 
+import androidx.annotation.Keep
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+@Keep
 @Entity(tableName = "run_sessions")
 data class RunSession(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -13,6 +15,7 @@ data class RunSession(
     val activityType: ActivityType = ActivityType.RUNNING
 )
 
+@Keep
 data class RunStats(
     val totalDistanceMeters: Float = 0f,
     val totalCalories: Int = 0

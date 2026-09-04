@@ -20,6 +20,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
+import androidx.annotation.Keep
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import com.dzung.runner.locationtracker.data.database.ActivityType
@@ -54,6 +55,7 @@ import kotlinx.coroutines.withContext
  * It elevates itself to a Foreground Service while tracking is active to prevent the system
  * from reclaiming its resources, and exposes location updates in real-time through a Kotlin StateFlow.
  */
+@Keep
 class LocationTrackingService : Service(), SensorEventListener {
 
     companion object {
@@ -97,6 +99,7 @@ class LocationTrackingService : Service(), SensorEventListener {
     private var lastSlopeElevation: Float = 0f
     private var currentSlopePercentage: Float = 0f
 
+    @Keep
     inner class LocalBinder : Binder() {
         fun getService(): LocationTrackingService = this@LocationTrackingService
     }
@@ -247,13 +250,17 @@ class LocationTrackingService : Service(), SensorEventListener {
     fun startLocationUpdates() {
         if (_trackingState.value.isTracking) return
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        val hasFine = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val hasCoarse = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+        if (!hasFine && !hasCoarse) {
             _trackingState.update { it.copy(errorMessage = "Location permission is not granted.") }
             return
         }
 
         try {
-            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 4000L).apply {
+            val priority = if (hasFine) Priority.PRIORITY_HIGH_ACCURACY else Priority.PRIORITY_BALANCED_POWER_ACCURACY
+            val locationRequest = LocationRequest.Builder(priority, 4000L).apply {
                 setMinUpdateIntervalMillis(2000L)
                 setWaitForAccurateLocation(false)
             }.build()

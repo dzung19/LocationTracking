@@ -4,7 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import android.content.Intent
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material3.*
@@ -17,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
 import com.dzung.runner.locationtracker.R
 import com.dzung.runner.locationtracker.HistoryViewModel
 import com.dzung.runner.locationtracker.data.database.ActivityType
@@ -36,6 +39,7 @@ fun RunDetailScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val runSessions by viewModel.runSessions.collectAsStateWithLifecycle()
     val sessionPoints by viewModel.sessionPoints.collectAsStateWithLifecycle()
 
@@ -87,7 +91,27 @@ fun RunDetailScreen(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                ),
+                actions = {
+                    session?.let { currentSession ->
+                        IconButton(onClick = {
+                            val distKm = currentSession.totalDistanceMeters / 1000f
+                            val text = "I completed a %.2f km %s with Location Tracker! Check it out: https://play.google.com/store/apps/details?id=%s"
+                                .format(distKm, if (currentSession.activityType == ActivityType.RUNNING) "run" else "walk", context.packageName)
+                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, text)
+                            }
+                            context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.share_app_title)))
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = stringResource(R.string.share_app),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
             )
         },
         modifier = modifier

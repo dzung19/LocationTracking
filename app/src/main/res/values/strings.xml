@@ -106,4 +106,10 @@
     <string name="ghost_comparison">Ghost Comparison</string>
     <string name="running_alone">Running Alone</string>
     <string name="ghost_comparison_header">YOU VS GHOST</string>
+
+    <!-- Share & Like App -->
+    <string name="share_app">Share App</string>
+    <string name="like_app">Rate &amp; Like App</string>
+    <string name="share_app_text">Track your runs and walks with Location Tracker! Download here: https://play.google.com/store/apps/details?id=%s</string>
+    <string name="share_app_title">Share Location Tracker via</string>
 </resources>

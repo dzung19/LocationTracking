@@ -1,10 +1,12 @@
 package com.dzung.runner.locationtracker.data.database
 
+import androidx.annotation.Keep
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+@Keep
 @Entity(
     tableName = "location_points",
     foreignKeys = [ForeignKey(

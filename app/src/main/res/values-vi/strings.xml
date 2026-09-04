@@ -104,4 +104,10 @@
     <string name="ghost_comparison">So sánh đối thủ</string>
     <string name="running_alone">Chạy một mình</string>
     <string name="ghost_comparison_header">BẠN VS ĐỐI THỦ</string>
+
+    <!-- Share & Like App -->
+    <string name="share_app">Chia sẻ ứng dụng</string>
+    <string name="like_app">Đánh giá &amp; Yêu thích</string>
+    <string name="share_app_text">Theo dõi lộ trình chạy bộ và đi bộ cùng Location Tracker! Tải ứng dụng tại: https://play.google.com/store/apps/details?id=%s</string>
+    <string name="share_app_title">Chia sẻ Location Tracker qua</string>
 </resources>

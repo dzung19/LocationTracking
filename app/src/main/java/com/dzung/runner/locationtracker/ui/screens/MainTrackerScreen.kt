@@ -21,6 +21,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.foundation.lazy.LazyColumn
@@ -418,13 +424,53 @@ fun MainTrackerScreen(
             }
         }
 
-        // Floating Ghost Comparison Card at Top-Right
-        if (state.isTracking && state.selectedGhostSessionId != null) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = contentPadding.calculateTopPadding() + 16.dp, end = 16.dp)
+        // Top-Right Floating Actions: Share, Like & Ghost Comparison Widget
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = contentPadding.calculateTopPadding() + 16.dp, end = 16.dp),
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Share and Like / Rate App Pill
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                tonalElevation = 4.dp,
+                shadowElevation = 6.dp
             ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { shareApp(context) },
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = stringResource(R.string.share_app),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = { rateApp(context) },
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Favorite,
+                            contentDescription = stringResource(R.string.like_app),
+                            tint = Color(0xFFE91E63),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+
+            // Floating Ghost Comparison Card at Top-Right
+            if (state.isTracking && state.selectedGhostSessionId != null) {
                 GhostComparisonWidget(
                     userDistance = state.distanceMeters,
                     ghostDistance = state.ghostDistanceMeters
@@ -881,5 +927,35 @@ fun GhostComparisonWidget(
                 color = if (diff >= 0) Color(0xFF4CAF50) else Color(0xFFFF9800)
             )
         }
+    }
+}
+
+/**
+ * Triggers Android share sheet with app link and promo message.
+ */
+private fun shareApp(context: Context) {
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        val text = context.getString(R.string.share_app_text, context.packageName)
+        putExtra(Intent.EXTRA_TEXT, text)
+    }
+    val chooser = Intent.createChooser(sendIntent, context.getString(R.string.share_app_title))
+    context.startActivity(chooser)
+}
+
+/**
+ * Opens Google Play Store page for user rating and review.
+ */
+private fun rateApp(context: Context) {
+    val packageName = context.packageName
+    val marketUri = Uri.parse("market://details?id=$packageName")
+    val goToMarket = Intent(Intent.ACTION_VIEW, marketUri).apply {
+        addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY or Intent.FLAG_ACTIVITY_NEW_DOCUMENT or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+    }
+    try {
+        context.startActivity(goToMarket)
+    } catch (e: ActivityNotFoundException) {
+        val webUri = Uri.parse("https://play.google.com/store/apps/details?id=$packageName")
+        context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
     }
 }
