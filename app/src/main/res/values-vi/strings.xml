@@ -110,4 +110,6 @@
     <string name="like_app">Đánh giá &amp; Yêu thích</string>
     <string name="share_app_text">Theo dõi lộ trình chạy bộ và đi bộ cùng Location Tracker! Tải ứng dụng tại: https://play.google.com/store/apps/details?id=%s</string>
     <string name="share_app_title">Chia sẻ Location Tracker qua</string>
+    <string name="collapse_tracker">Thu gọn bảng theo dõi</string>
+    <string name="expand_tracker">Mở rộng bảng theo dõi</string>
 </resources>

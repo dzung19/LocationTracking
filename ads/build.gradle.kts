@@ -31,7 +31,7 @@ android {
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.17.0")
+    implementation(libs.androidx.core.ktx.v1170)
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("com.google.android.material:material:1.13.0")
     testImplementation("junit:junit:4.13.2")
@@ -39,10 +39,10 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
 
     // For ADS
-    implementation("com.google.android.gms:play-services-ads:24.7.0")
+    implementation(libs.play.services.ads.v2470)
     implementation("androidx.lifecycle:lifecycle-process:2.8.4")
-    implementation("com.android.billingclient:billing:7.0.0")
-    implementation("com.android.billingclient:billing-ktx:7.0.0")
+    implementation(libs.billing)
+    implementation(libs.billing.ktx)
 
     // implementation("com.google.android.gms:play-services-ads-api:24.7.0") // Usually included in play-services-ads
 
@@ -51,7 +51,7 @@ dependencies {
     implementation("com.google.firebase:firebase-config-ktx:22.0.0")
     implementation("com.google.firebase:firebase-analytics-ktx:22.1.0")
     // Coroutines for async operations
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation(libs.kotlinx.coroutines.android.v181)
 
     // JSON parsing (optional, for better JSON handling)
     implementation("com.google.code.gson:gson:2.11.0")

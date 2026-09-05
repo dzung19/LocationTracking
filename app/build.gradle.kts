@@ -20,9 +20,9 @@ android {
 
   defaultConfig {
     applicationId = "com.dzung.runner.locationtracker"
-    minSdk = 24
+    minSdk = 28
     targetSdk = 37
-    versionCode = 2
+    versionCode = 3
     versionName = "1.1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -68,6 +68,12 @@ android {
       }
     }
     debug {
+      buildConfigField("String", "APP_OPEN_AD_ID", "\"ca-app-pub-3940256099942544/9257395921\"")
+      buildConfigField("String", "BANNER_AD_ID", "\"ca-app-pub-3940256099942544/6300978111\"")
+      buildConfigField("String", "INTERSTITIAL_AD_ID", "\"ca-app-pub-3940256099942544/1033173712\"")
+      buildConfigField("String", "REMOVE_ADS_SKU", "\"android.test.purchased\"")
+      buildConfigField("Boolean", "ADS_DISABLED", "false")
+      manifestPlaceholders["caAppPubId"] = "ca-app-pub-3940256099942544~3347511713"
       buildConfigField("Boolean", "ADS_DISABLED", "false")
       signingConfigs.findByName("debugConfig")?.let {
         signingConfig = it

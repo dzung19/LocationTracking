@@ -112,4 +112,6 @@
     <string name="like_app">Rate &amp; Like App</string>
     <string name="share_app_text">Track your runs and walks with Location Tracker! Download here: https://play.google.com/store/apps/details?id=%s</string>
     <string name="share_app_title">Share Location Tracker via</string>
+    <string name="collapse_tracker">Collapse Tracker</string>
+    <string name="expand_tracker">Expand Tracker</string>
 </resources>

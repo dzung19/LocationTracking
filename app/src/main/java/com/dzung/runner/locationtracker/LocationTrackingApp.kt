@@ -1,7 +1,9 @@
 package com.dzung.runner.locationtracker
 
 import android.app.Application
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import com.daumo.ads.DynamicAdsManager
 import com.dzung.runner.locationtracker.di.appModule
 import org.koin.android.ext.koin.androidContext
@@ -15,7 +17,12 @@ class LocationTrackingApp : Application() {
             androidContext(this@LocationTrackingApp)
             modules(appModule)
         }
-        if (isMainProcess()) {
+        if (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                isMainProcess()
+            } else {
+                TODO("VERSION.SDK_INT < P")
+            }
+        ) {
             try {
                 // Check if ads should be disabled
                 val adsDisabled = try {
@@ -31,6 +38,7 @@ class LocationTrackingApp : Application() {
             }
         }
     }
+    @RequiresApi(Build.VERSION_CODES.P)
     private fun isMainProcess(): Boolean {
         return applicationInfo.packageName == getProcessName()
     }

@@ -29,6 +29,15 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import java.text.SimpleDateFormat
@@ -89,6 +98,12 @@ fun MainTrackerScreen(
     val coroutineScope = rememberCoroutineScope()
 
     val weatherState by viewModel.weatherState.collectAsStateWithLifecycle()
+
+    var isTrackerExpanded by remember { mutableStateOf(!state.isTracking) }
+
+    LaunchedEffect(state.isTracking) {
+        isTrackerExpanded = !state.isTracking
+    }
 
     // Fetch weather immediately using best available coordinates (GPS if active, fallback to last saved location)
     val currentLat = state.latitude ?: savedLat
@@ -504,7 +519,9 @@ fun MainTrackerScreen(
             }
 
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(animationSpec = tween(durationMillis = 300)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
@@ -548,213 +565,238 @@ fun MainTrackerScreen(
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        AnimatedVisibility(
+                            visible = isTrackerExpanded,
+                            enter = fadeIn(animationSpec = tween(250)) + expandVertically(animationSpec = tween(300)),
+                            exit = fadeOut(animationSpec = tween(200)) + shrinkVertically(animationSpec = tween(300))
+                        ) {
                             Column {
-                                Text(
-                                    text = stringResource(R.string.activity_tracker),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = if (state.isTracking) stringResource(R.string.fg_updates_active) else stringResource(R.string.system_idle),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            IconButton(onClick = { showWeightDialog = true }, modifier = Modifier.size(24.dp)) {
-                                Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings), modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-                            }
-                        }
-
-                        val badgeColor = if (state.isTracking) Color(0xFF4CAF50) else Color(0xFFF44336)
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(badgeColor.copy(alpha = 0.15f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(badgeColor)
-                            )
-                            Text(
-                                text = if (state.isTracking) stringResource(R.string.tracking_active) else stringResource(R.string.tracking_stopped),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = badgeColor
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Dashboard Grid
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        DetailItem(stringResource(R.string.distance_label), "%.2f km".format(state.distanceMeters / 1000f), Modifier.weight(1f))
-                        
-                        val paceStr = if (state.distanceMeters > 0) {
-                            val paceSecondsPerKm = (state.elapsedTimeSeconds / (state.distanceMeters / 1000f)).toInt()
-                            val mins = paceSecondsPerKm / 60
-                            val secs = paceSecondsPerKm % 60
-                            "%d:%02d /km".format(mins, secs)
-                        } else {
-                            "-:-- /km"
-                        }
-                        DetailItem(stringResource(R.string.pace_label), paceStr, Modifier.weight(1f))
-                    }
-                    
-                    Spacer(Modifier.height(8.dp))
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        val h = state.elapsedTimeSeconds / 3600
-                        val m = (state.elapsedTimeSeconds % 3600) / 60
-                        val s = state.elapsedTimeSeconds % 60
-                        val timeStr = if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
-                        
-                        DetailItem(stringResource(R.string.time_label), timeStr, Modifier.weight(1f))
-                        DetailItem(stringResource(R.string.calories_label), "${state.caloriesBurned} kcal", Modifier.weight(1f))
-                    }
-                    
-                    Spacer(Modifier.height(8.dp))
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        DetailItem(stringResource(R.string.elevation_label), "%.1f m".format(state.elevationMeters), Modifier.weight(1f))
-                        val sign = if (state.slopePercentage > 0) "+" else ""
-                        DetailItem(stringResource(R.string.slope_label), "$sign%.1f %%".format(state.slopePercentage), Modifier.weight(1f))
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    if (!state.isTracking) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                            val isWalking = state.activityType == ActivityType.WALKING
-                            Button(
-                                onClick = { viewModel.setActivityType(ActivityType.WALKING) },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isWalking) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                    contentColor = if (isWalking) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            ) { Text(stringResource(R.string.walk)) }
-                            
-                            Spacer(modifier = Modifier.width(8.dp))
-                    
-                            val isRunning = state.activityType == ActivityType.RUNNING
-                            Button(
-                                onClick = { viewModel.setActivityType(ActivityType.RUNNING) },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                    contentColor = if (isRunning) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            ) { Text(stringResource(R.string.run)) }
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Ghost selector chip / button
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (state.selectedGhostSessionId == null) {
-                                Button(
-                                    onClick = { showGhostDialog = true },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                                    ),
-                                    shape = RoundedCornerShape(8.dp),
-                                    modifier = Modifier.height(36.dp)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Default.DirectionsRun, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(stringResource(R.string.select_ghost), style = MaterialTheme.typography.labelMedium)
-                                }
-                            } else {
-                                val selectedSession = allSessions.find { it.id == state.selectedGhostSessionId }
-                                selectedSession?.let { sess ->
-                                    InputChip(
-                                        selected = true,
-                                        onClick = { viewModel.setGhostSession(null) },
-                                        label = {
-                                            val distKm = sess.totalDistanceMeters / 1000f
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column {
                                             Text(
-                                                text = stringResource(R.string.ghost_active, "%.2f km".format(distKm)),
-                                                style = MaterialTheme.typography.labelMedium
+                                                text = stringResource(R.string.activity_tracker),
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
                                             )
-                                        },
-                                        trailingIcon = {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Clear Ghost",
-                                                modifier = Modifier.size(16.dp)
+                                            Text(
+                                                text = if (state.isTracking) stringResource(R.string.fg_updates_active) else stringResource(R.string.system_idle),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
-                                    )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        IconButton(onClick = { showWeightDialog = true }, modifier = Modifier.size(24.dp)) {
+                                            Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings), modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                                        }
+                                    }
+
+                                    val badgeColor = if (state.isTracking) Color(0xFF4CAF50) else Color(0xFFF44336)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(badgeColor.copy(alpha = 0.15f))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(8.dp)
+                                                .clip(CircleShape)
+                                                .background(badgeColor)
+                                        )
+                                        Text(
+                                            text = if (state.isTracking) stringResource(R.string.tracking_active) else stringResource(R.string.tracking_stopped),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = badgeColor
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+                                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                // Dashboard Grid
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    DetailItem(stringResource(R.string.distance_label), "%.2f km".format(state.distanceMeters / 1000f), Modifier.weight(1f))
+                                    
+                                    val paceStr = if (state.distanceMeters > 0) {
+                                        val paceSecondsPerKm = (state.elapsedTimeSeconds / (state.distanceMeters / 1000f)).toInt()
+                                        val mins = paceSecondsPerKm / 60
+                                        val secs = paceSecondsPerKm % 60
+                                        "%d:%02d /km".format(mins, secs)
+                                    } else {
+                                        "-:-- /km"
+                                    }
+                                    DetailItem(stringResource(R.string.pace_label), paceStr, Modifier.weight(1f))
+                                }
+                                
+                                Spacer(Modifier.height(8.dp))
+                                
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    val h = state.elapsedTimeSeconds / 3600
+                                    val m = (state.elapsedTimeSeconds % 3600) / 60
+                                    val s = state.elapsedTimeSeconds % 60
+                                    val timeStr = if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
+                                    
+                                    DetailItem(stringResource(R.string.time_label), timeStr, Modifier.weight(1f))
+                                    DetailItem(stringResource(R.string.calories_label), "${state.caloriesBurned} kcal", Modifier.weight(1f))
+                                }
+                                
+                                Spacer(Modifier.height(8.dp))
+                                
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    DetailItem(stringResource(R.string.elevation_label), "%.1f m".format(state.elevationMeters), Modifier.weight(1f))
+                                    val sign = if (state.slopePercentage > 0) "+" else ""
+                                    DetailItem(stringResource(R.string.slope_label), "$sign%.1f %%".format(state.slopePercentage), Modifier.weight(1f))
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                if (!state.isTracking) {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                                        val isWalking = state.activityType == ActivityType.WALKING
+                                        Button(
+                                            onClick = { viewModel.setActivityType(ActivityType.WALKING) },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = if (isWalking) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                                contentColor = if (isWalking) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        ) { Text(stringResource(R.string.walk)) }
+                                        
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                
+                                        val isRunning = state.activityType == ActivityType.RUNNING
+                                        Button(
+                                            onClick = { viewModel.setActivityType(ActivityType.RUNNING) },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                                contentColor = if (isRunning) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        ) { Text(stringResource(R.string.run)) }
+                                    }
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    // Ghost selector chip / button
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        if (state.selectedGhostSessionId == null) {
+                                            Button(
+                                                onClick = { showGhostDialog = true },
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                                ),
+                                                shape = RoundedCornerShape(8.dp),
+                                                modifier = Modifier.height(36.dp)
+                                            ) {
+                                                Icon(Icons.Default.DirectionsRun, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(stringResource(R.string.select_ghost), style = MaterialTheme.typography.labelMedium)
+                                            }
+                                        } else {
+                                            val selectedSession = allSessions.find { it.id == state.selectedGhostSessionId }
+                                            selectedSession?.let { sess ->
+                                                InputChip(
+                                                    selected = true,
+                                                    onClick = { viewModel.setGhostSession(null) },
+                                                    label = {
+                                                        val distKm = sess.totalDistanceMeters / 1000f
+                                                        Text(
+                                                            text = stringResource(R.string.ghost_active, "%.2f km".format(distKm)),
+                                                            style = MaterialTheme.typography.labelMedium
+                                                        )
+                                                    },
+                                                    trailingIcon = {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Close,
+                                                            contentDescription = "Clear Ghost",
+                                                            modifier = Modifier.size(16.dp)
+                                                        )
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
                                 }
                             }
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                onStartService()
-                                viewModel.startTracking()
-                            },
-                            enabled = !state.isTracking,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f).height(48.dp)
+                        // Bottom action buttons row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.PlayArrow, stringResource(R.string.start), modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(stringResource(R.string.start), fontWeight = FontWeight.SemiBold)
-                        }
+                            Button(
+                                onClick = {
+                                    onStartService()
+                                    viewModel.startTracking()
+                                    isTrackerExpanded = false
+                                },
+                                enabled = !state.isTracking,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f).height(48.dp)
+                            ) {
+                                Icon(Icons.Default.PlayArrow, stringResource(R.string.start), modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(stringResource(R.string.start), fontWeight = FontWeight.SemiBold)
+                            }
 
-                        Button(
-                            onClick = { viewModel.stopTracking() },
-                            enabled = state.isTracking,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error,
-                                disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f).height(48.dp)
-                        ) {
-                            Icon(Icons.Default.Stop, stringResource(R.string.stop), modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(stringResource(R.string.stop), fontWeight = FontWeight.SemiBold)
+                            Button(
+                                onClick = {
+                                    viewModel.stopTracking()
+                                    isTrackerExpanded = true
+                                },
+                                enabled = state.isTracking,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f).height(48.dp)
+                            ) {
+                                Icon(Icons.Default.Stop, stringResource(R.string.stop), modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(stringResource(R.string.stop), fontWeight = FontWeight.SemiBold)
+                            }
+
+                            FilledTonalIconButton(
+                                onClick = { isTrackerExpanded = !isTrackerExpanded },
+                                modifier = Modifier.size(48.dp),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isTrackerExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                                    contentDescription = if (isTrackerExpanded) stringResource(R.string.collapse_tracker) else stringResource(R.string.expand_tracker)
+                                )
+                            }
                         }
-                    }
                     }
                 }
             }
