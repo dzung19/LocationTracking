@@ -28,8 +28,7 @@ import com.dzung.runner.locationtracker.data.database.AppDatabase
 import com.dzung.runner.locationtracker.data.database.LocationPoint
 import com.dzung.runner.locationtracker.data.database.RunSession
 import com.dzung.runner.locationtracker.data.database.RunDao
-import com.dzung.runner.locationtracker.ui.screens.WEIGHT_KEY
-import com.dzung.runner.locationtracker.ui.screens.dataStore
+import com.dzung.runner.locationtracker.data.repository.UserPreferencesRepository
 import com.google.android.gms.location.FusedLocationProviderClient
 import org.koin.android.ext.android.inject
 import com.google.android.gms.location.LocationCallback
@@ -69,6 +68,7 @@ class LocationTrackingService : Service(), SensorEventListener {
 
     private val binder = LocalBinder()
     private val runDao: RunDao by inject()
+    private val userPreferencesRepository: UserPreferencesRepository by inject()
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
 
@@ -115,16 +115,18 @@ class LocationTrackingService : Service(), SensorEventListener {
         
         createNotificationChannel()
         setupLocationCallback()
+        fetchInitialLocation()
         
         // Observe weight changes from DataStore
         serviceScope.launch {
-            applicationContext.dataStore.data.collect { prefs ->
-                currentWeightKg = prefs[WEIGHT_KEY] ?: 70f
+            userPreferencesRepository.userPreferencesFlow.collect { prefs ->
+                currentWeightKg = prefs.weight
             }
         }
     }
 
     override fun onBind(intent: Intent?): IBinder {
+        fetchInitialLocation()
         return binder
     }
 
@@ -242,7 +244,37 @@ class LocationTrackingService : Service(), SensorEventListener {
                     }
                 }
 
+                // Persist current location to DataStore
+                serviceScope.launch {
+                    userPreferencesRepository.saveLocation(location.latitude, location.longitude)
+                }
+
                 updateNotificationContent(location)
+            }
+        }
+    }
+
+    /**
+     * One-time location query on startup/bind to initialize coordinates before user presses Start
+     */
+    fun fetchInitialLocation() {
+        val hasFine = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val hasCoarse = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+        if (hasFine || hasCoarse) {
+            try {
+                fusedLocationClient.lastLocation.addOnSuccessListener { loc ->
+                    if (loc != null && !_trackingState.value.isTracking) {
+                        _trackingState.update {
+                            it.copy(latitude = loc.latitude, longitude = loc.longitude)
+                        }
+                        serviceScope.launch {
+                            userPreferencesRepository.saveLocation(loc.latitude, loc.longitude)
+                        }
+                    }
+                }
+            } catch (e: SecurityException) {
+                Log.w(TAG, "Location permission missing", e)
             }
         }
     }

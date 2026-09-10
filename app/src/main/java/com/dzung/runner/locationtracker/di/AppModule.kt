@@ -10,6 +10,7 @@ import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
+import com.dzung.runner.locationtracker.data.repository.UserPreferencesRepository
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 
@@ -25,6 +26,9 @@ val appModule = module {
     
     // Provide RunDao
     single { get<AppDatabase>().runDao() }
+
+    // Provide UserPreferencesRepository singleton
+    single { UserPreferencesRepository(androidContext()) }
 
     // Provide Moshi
     single { Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build() }
@@ -54,8 +58,8 @@ val appModule = module {
     // Provide WeatherRepository
     single { WeatherRepository(get(), androidContext(), get()) }
     
-    // Provide LocationViewModel with injected WeatherRepository and RunDao
-    viewModel { LocationViewModel(get(), get()) }
+    // Provide LocationViewModel with injected WeatherRepository, RunDao, and UserPreferencesRepository
+    viewModel { LocationViewModel(get(), get(), get()) }
     
     // Provide HistoryViewModel
     viewModel { HistoryViewModel(get()) }

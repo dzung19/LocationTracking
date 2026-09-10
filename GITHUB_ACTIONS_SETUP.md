@@ -9,19 +9,30 @@ When you commit and push this file to your repository on GitHub, it will automat
 2. **Sets up JDK 21:** Configures Java 21, which is required for your Gradle 9.1 setup. It also enables Gradle caching to speed up subsequent builds.
 3. **Builds the project:** Runs `./gradlew build` to compile the app and run any unit tests.
 
-## Important Notes for CI
+## Required GitHub Repository Secrets
 
-### 1. `debug.keystore`
-In your `app/build.gradle.kts`, the debug signing config looks for a keystore in the project root:
-`storeFile = file("${rootDir}/debug.keystore")`
-Since `debug.keystore` is typically ignored by `.gitignore` and not pushed to GitHub, the CI build may fail if it can't find this file. You have two options:
-* **Option A:** Generate a `debug.keystore` in your project root and commit it to Git (it's safe to commit a debug keystore).
-* **Option B:** Modify `app/build.gradle.kts` to fall back to the default keystore if the local one is missing.
+Go to your GitHub repository: **Settings** -> **Secrets and variables** -> **Actions** -> **New repository secret**.
 
-### 2. Release Keystore Secrets
-Your `app/build.gradle.kts` expects environment variables for the release build:
-* `KEYSTORE_PATH`
-* `STORE_PASSWORD`
-* `KEY_PASSWORD`
+### 1. Google Services (`google-services.json`)
+- **Secret Name:** `GOOGLE_SERVICES_JSON`
+- **Secret Value:** Copy and paste the entire raw contents of your [app/google-services.json](file:///c:/Users/phung/New%20folder/LocationTracking/app/google-services.json) file.
+*(Alternatively, you can base64 encode it and save it as `GOOGLE_SERVICES_JSON_BASE64`)*
 
-If you want GitHub Actions to build signed release APKs/AABs in the future, you will need to add these as [GitHub Repository Secrets](https://docs.github.com/en/actions/security-guides/encrypted-secrets) and update the `android.yml` workflow to decode the keystore and pass the passwords as environment variables.
+### 2. API Keys & Ads (for `local.properties`)
+- `MAPS_API_KEY`: Your Google Maps API key.
+- `OPENWEATHER_API_KEY`: Your OpenWeatherMap API key.
+- `APP_OPEN_AD_ID`: Your AdMob App Open ad unit ID.
+- `BANNER_AD_ID`: Your AdMob Banner ad unit ID.
+- `INTERSTITIAL_AD_ID`: Your AdMob Interstitial ad unit ID.
+
+### 3. Keystores (Optional for Signed Builds)
+- `DEBUG_KEYSTORE_BASE64`: Base64 string of your `debug.keystore` (if omitted, Gradle uses standard debug signing).
+- `RELEASE_KEYSTORE_BASE64`: Base64 string of `my-upload-key.jks` (if added, GitHub Actions will automatically build and upload `app-release.aab`).
+- `STORE_PASSWORD`: Keystore store password.
+- `KEY_PASSWORD`: Key password.
+
+```powershell
+# To get the base64 string on Windows (PowerShell):
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("my-upload-key.jks")) | Set-Clipboard
+```
+

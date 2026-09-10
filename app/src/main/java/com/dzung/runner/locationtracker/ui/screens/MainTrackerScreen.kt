@@ -60,8 +60,10 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
-import androidx.datastore.preferences.core.doublePreferencesKey
-import androidx.datastore.preferences.core.edit
+import com.dzung.runner.locationtracker.data.repository.UserPreferences
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import kotlinx.coroutines.launch
@@ -70,28 +72,14 @@ import kotlinx.coroutines.launch
 fun MainTrackerScreen(
     viewModel: LocationViewModel,
     state: LocationTrackingState,
+    userPreferences: UserPreferences,
     onStartService: () -> Unit,
     hasLocationPermission: Boolean,
     onRequestPermission: () -> Unit,
     contentPadding: PaddingValues = PaddingValues()
 ) {
     val context = LocalContext.current
-    val LAT_KEY = doublePreferencesKey("last_lat")
-    val LON_KEY = doublePreferencesKey("last_lon")
-
-    val locationPrefs by context.dataStore.data.collectAsStateWithLifecycle(initialValue = null)
-
-    if (locationPrefs == null) {
-        // Wait for DataStore to load the initial cached location
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
-        return
-    }
-
-    val savedLat = locationPrefs?.get(LAT_KEY) ?: 10.762622
-    val savedLon = locationPrefs?.get(LON_KEY) ?: 106.660172
-    val userWeight = locationPrefs?.get(WEIGHT_KEY) ?: 70f
+    val userWeight = userPreferences.weight
     var showWeightDialog by remember { mutableStateOf(false) }
     var showGhostDialog by remember { mutableStateOf(false) }
     val allSessions by viewModel.allSessions.collectAsStateWithLifecycle(emptyList())
@@ -106,8 +94,8 @@ fun MainTrackerScreen(
     }
 
     // Fetch weather immediately using best available coordinates (GPS if active, fallback to last saved location)
-    val currentLat = state.latitude ?: savedLat
-    val currentLon = state.longitude ?: savedLon
+    val currentLat = state.latitude ?: userPreferences.latitude
+    val currentLon = state.longitude ?: userPreferences.longitude
 
     LaunchedEffect(currentLat, currentLon) {
         viewModel.fetchWeather(currentLat, currentLon)
@@ -131,11 +119,7 @@ fun MainTrackerScreen(
                 TextButton(onClick = {
                     val newWeight = weightInput.toFloatOrNull()
                     if (newWeight != null && newWeight > 0) {
-                        coroutineScope.launch {
-                            context.dataStore.edit { prefs ->
-                                prefs[WEIGHT_KEY] = newWeight
-                            }
-                        }
+                        viewModel.saveWeight(newWeight)
                         showWeightDialog = false
                     }
                 }) {
@@ -256,10 +240,22 @@ fun MainTrackerScreen(
         )
     }
 
-    val defaultLocation = LatLng(savedLat, savedLon)
+    val defaultLocation = LatLng(userPreferences.latitude, userPreferences.longitude)
     
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(defaultLocation, 16f)
+    }
+
+    // If coordinates were newly loaded/saved and GPS is not active yet, animate camera to saved location
+    LaunchedEffect(userPreferences.hasSavedLocation, userPreferences.latitude, userPreferences.longitude) {
+        if (userPreferences.hasSavedLocation && state.latitude == null) {
+            cameraPositionState.animate(
+                CameraUpdateFactory.newLatLngZoom(
+                    LatLng(userPreferences.latitude, userPreferences.longitude),
+                    16f
+                )
+            )
+        }
     }
 
     val currentLatLng = remember(state.latitude, state.longitude) {
@@ -273,9 +269,44 @@ fun MainTrackerScreen(
     // Save newly tracked coordinates to DataStore
     LaunchedEffect(state.latitude, state.longitude) {
         if (state.latitude != null && state.longitude != null) {
-            context.dataStore.edit { prefs ->
-                prefs[LAT_KEY] = state.latitude
-                prefs[LON_KEY] = state.longitude
+            viewModel.saveLocation(state.latitude, state.longitude)
+        }
+    }
+
+    // Locate user immediately on app open and persist coordinates to DataStore
+    LaunchedEffect(hasLocationPermission) {
+        if (hasLocationPermission) {
+            val fusedClient = LocationServices.getFusedLocationProviderClient(context)
+            try {
+                fusedClient.lastLocation.addOnSuccessListener { loc ->
+                    if (loc != null) {
+                        val target = LatLng(loc.latitude, loc.longitude)
+                        if (state.latitude == null) {
+                            coroutineScope.launch {
+                                cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(target, 16f))
+                            }
+                        }
+                        viewModel.saveLocation(loc.latitude, loc.longitude)
+                    }
+                }
+
+                val cancellationTokenSource = CancellationTokenSource()
+                fusedClient.getCurrentLocation(
+                    Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+                    cancellationTokenSource.token
+                ).addOnSuccessListener { loc ->
+                    if (loc != null) {
+                        val target = LatLng(loc.latitude, loc.longitude)
+                        if (state.latitude == null) {
+                            coroutineScope.launch {
+                                cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(target, 16f))
+                            }
+                        }
+                        viewModel.saveLocation(loc.latitude, loc.longitude)
+                    }
+                }
+            } catch (e: SecurityException) {
+                // Ignore if permission revoked
             }
         }
     }
@@ -504,8 +535,22 @@ fun MainTrackerScreen(
             if (hasLocationPermission) {
                 FloatingActionButton(
                     onClick = {
-                        val target = currentLatLng ?: defaultLocation
-                        cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(target, 16f))
+                        coroutineScope.launch {
+                            val target = currentLatLng ?: defaultLocation
+                            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(target, 16f))
+                            val fusedClient = LocationServices.getFusedLocationProviderClient(context)
+                            try {
+                                fusedClient.lastLocation.addOnSuccessListener { loc ->
+                                    if (loc != null) {
+                                        val newTarget = LatLng(loc.latitude, loc.longitude)
+                                        coroutineScope.launch {
+                                            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(newTarget, 16f))
+                                        }
+                                        viewModel.saveLocation(loc.latitude, loc.longitude)
+                                    }
+                                }
+                            } catch (e: SecurityException) {}
+                        }
                     },
                     modifier = Modifier
                         .padding(bottom = 16.dp)

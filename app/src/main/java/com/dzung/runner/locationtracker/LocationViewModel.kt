@@ -13,13 +13,37 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.dzung.runner.locationtracker.data.database.RunDao
 import com.dzung.runner.locationtracker.data.database.RunSession
+import com.dzung.runner.locationtracker.data.repository.UserPreferences
+import com.dzung.runner.locationtracker.data.repository.UserPreferencesRepository
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 
 class LocationViewModel(
     private val weatherRepository: WeatherRepository,
-    private val runDao: RunDao
+    private val runDao: RunDao,
+    private val userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
 
     val allSessions: Flow<List<RunSession>> = runDao.getAllRunSessions()
+
+    val userPreferences: StateFlow<UserPreferences?> = userPreferencesRepository.userPreferencesFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = null
+        )
+
+    fun saveLocation(lat: Double, lon: Double) {
+        viewModelScope.launch {
+            userPreferencesRepository.saveLocation(lat, lon)
+        }
+    }
+
+    fun saveWeight(weight: Float) {
+        viewModelScope.launch {
+            userPreferencesRepository.saveWeight(weight)
+        }
+    }
 
     private var activeService: LocationTrackingService? = null
     private var serviceCollectorJob: Job? = null
@@ -60,6 +84,7 @@ class LocationViewModel(
         serviceCollectorJob?.cancel()
         
         if (service != null) {
+            service.fetchInitialLocation()
             // Start collecting state updates from the service
             serviceCollectorJob = viewModelScope.launch {
                 service.trackingState.collect { state ->
@@ -70,6 +95,10 @@ class LocationViewModel(
             // If service is disconnected unexpectedly, mark tracking as false safely
             _trackingState.update { it.copy(isTracking = false) }
         }
+    }
+
+    fun fetchInitialLocation() {
+        activeService?.fetchInitialLocation()
     }
 
     /**

@@ -1,4 +1,5 @@
 <resources>
+    <string name="app_slogan">Theo dấu từng bước chạy, ghi trọn mọi khoảnh khắc</string>
     <!-- General -->
     <string name="ok">OK</string>
     <string name="cancel">Hủy</string>
