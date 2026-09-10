@@ -648,12 +648,23 @@ class LocationTrackingService : Service(), SensorEventListener {
         timerJob?.cancel()
 
         val finalState = _trackingState.value
+        val sessionEndTime = if (lastMovingTimestampMs > startTimeMillis) {
+            lastMovingTimestampMs
+        } else {
+            System.currentTimeMillis()
+        }
+        val finalElapsedSeconds = if (startTimeMillis > 0L && sessionEndTime > startTimeMillis) {
+            (sessionEndTime - startTimeMillis) / 1000L
+        } else {
+            finalState.elapsedTimeSeconds
+        }
+
         serviceScope.launch {
             try {
                 currentSessionId?.let { sid ->
                     runDao.getRunSession(sid)?.let { session ->
                         val updatedSession = session.copy(
-                            endTimeInMillis = System.currentTimeMillis(),
+                            endTimeInMillis = sessionEndTime,
                             totalDistanceMeters = finalState.distanceMeters,
                             totalCalories = finalState.caloriesBurned
                         )
@@ -671,6 +682,7 @@ class LocationTrackingService : Service(), SensorEventListener {
                 _trackingState.update {
                     it.copy(
                         isTracking = false,
+                        elapsedTimeSeconds = finalElapsedSeconds,
                         errorMessage = "Tracking stopped by user"
                     )
                 }
@@ -683,7 +695,8 @@ class LocationTrackingService : Service(), SensorEventListener {
         try {
             val state = _trackingState.value
             val distanceKm = state.distanceMeters / 1000f
-            val paceDisplay = state.currentPaceSecondsPerKm?.let { paceSec ->
+            val displayPace = state.currentPaceSecondsPerKm ?: state.averagePaceSecondsPerKm
+            val paceDisplay = displayPace?.let { paceSec ->
                 "%d:%02d/km".format(paceSec / 60, paceSec % 60)
             } ?: "--:--"
             val text = "Dist: %.2f km | Pace: %s | Time: %d s".format(distanceKm, paceDisplay, state.elapsedTimeSeconds)

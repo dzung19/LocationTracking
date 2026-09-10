@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import java.io.IOException
 import kotlinx.coroutines.flow.Flow
@@ -20,7 +21,8 @@ data class UserPreferences(
     val latitude: Double,
     val longitude: Double,
     val weight: Float,
-    val hasSavedLocation: Boolean
+    val hasSavedLocation: Boolean,
+    val markerIcon: String = UserPreferencesRepository.DEFAULT_MARKER_ICON
 )
 
 class UserPreferencesRepository(private val context: Context) {
@@ -30,10 +32,12 @@ class UserPreferencesRepository(private val context: Context) {
         val KEY_LATITUDE = doublePreferencesKey("last_lat")
         val KEY_LONGITUDE = doublePreferencesKey("last_lon")
         val KEY_WEIGHT = floatPreferencesKey("user_weight")
+        val KEY_MARKER_ICON = stringPreferencesKey("marker_icon")
 
         const val DEFAULT_LATITUDE = 10.762622
         const val DEFAULT_LONGITUDE = 106.660172
         const val DEFAULT_WEIGHT = 70f
+        const val DEFAULT_MARKER_ICON = "DEFAULT"
     }
 
     val userPreferencesFlow: Flow<UserPreferences> = context.locationDataStore.data
@@ -52,7 +56,8 @@ class UserPreferencesRepository(private val context: Context) {
                 latitude = prefs[KEY_LATITUDE] ?: DEFAULT_LATITUDE,
                 longitude = prefs[KEY_LONGITUDE] ?: DEFAULT_LONGITUDE,
                 weight = prefs[KEY_WEIGHT] ?: DEFAULT_WEIGHT,
-                hasSavedLocation = hasLat && hasLon
+                hasSavedLocation = hasLat && hasLon,
+                markerIcon = prefs[KEY_MARKER_ICON] ?: DEFAULT_MARKER_ICON
             )
         }
 
@@ -74,6 +79,16 @@ class UserPreferencesRepository(private val context: Context) {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error saving user weight to DataStore", e)
+        }
+    }
+
+    suspend fun saveMarkerIcon(markerIcon: String) {
+        try {
+            context.locationDataStore.edit { prefs ->
+                prefs[KEY_MARKER_ICON] = markerIcon
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving marker icon to DataStore", e)
         }
     }
 }

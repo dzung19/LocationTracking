@@ -37,4 +37,17 @@ data class LocationTrackingState(
     val ghostLatitude: Double? = null,
     val ghostLongitude: Double? = null,
     val ghostDistanceMeters: Float = 0f
-)
+) {
+    /**
+     * Overall average pace calculated from accumulated distance and time.
+     * Returns null if distance is negligible (< 20m) or time is 0.
+     */
+    val averagePaceSecondsPerKm: Int?
+        get() {
+            val distKm = distanceMeters / 1000f
+            if (distKm < 0.02f) return null
+            val timeSec = if (movingTimeSeconds > 0) movingTimeSeconds else elapsedTimeSeconds
+            if (timeSec <= 0) return null
+            return (timeSec / distKm).toInt().coerceIn(60, 3600)
+        }
+}

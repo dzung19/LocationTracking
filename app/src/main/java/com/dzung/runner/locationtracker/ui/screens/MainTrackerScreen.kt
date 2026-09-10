@@ -2,6 +2,9 @@ package com.dzung.runner.locationtracker.ui.screens
 
 import android.Manifest
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -114,28 +117,105 @@ fun MainTrackerScreen(
     }
     
     if (showWeightDialog) {
-        var weightInput by remember { mutableStateOf(userWeight.toString()) }
+        var weightInput by remember(userWeight) { mutableStateOf(userWeight.toString()) }
+        val currentMarkerIcon = userPreferences.markerIcon
+        val markerOptions = listOf(
+            Triple("DEFAULT", stringResource(R.string.marker_default), "🏃"),
+            Triple("ORANGE", stringResource(R.string.marker_orange), "🍊"),
+            Triple("SNEAKER", stringResource(R.string.marker_sneaker), "👟"),
+            Triple("FIRE", stringResource(R.string.marker_fire), "🔥"),
+            Triple("BOLT", stringResource(R.string.marker_bolt), "⚡"),
+            Triple("ROCKET", stringResource(R.string.marker_rocket), "🚀")
+        )
+
         AlertDialog(
             onDismissRequest = { showWeightDialog = false },
-            icon = { Icon(Icons.Default.MonitorWeight, contentDescription = null) },
-            title = { Text(stringResource(R.string.body_weight_title)) },
+            icon = { Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text(stringResource(R.string.settings), fontWeight = FontWeight.Bold) },
             text = {
-                OutlinedTextField(
-                    value = weightInput,
-                    onValueChange = { weightInput = it },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    label = { Text(stringResource(R.string.weight_label)) }
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Map Marker Icon Section
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = stringResource(R.string.map_marker_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        // 3x2 Grid for Marker Options
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            markerOptions.chunked(3).forEach { rowItems ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    rowItems.forEach { (key, name, emoji) ->
+                                        val isSelected = currentMarkerIcon == key
+                                        Surface(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clickable { viewModel.saveMarkerIcon(key) },
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                            border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.padding(vertical = 8.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.Center
+                                            ) {
+                                                Text(emoji, fontSize = 22.sp)
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    text = name,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    // Weight Section
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = stringResource(R.string.body_weight_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        OutlinedTextField(
+                            value = weightInput,
+                            onValueChange = { weightInput = it },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            label = { Text(stringResource(R.string.weight_label)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+                }
             },
             confirmButton = {
                 TextButton(onClick = {
                     val newWeight = weightInput.toFloatOrNull()
                     if (newWeight != null && newWeight > 0) {
                         viewModel.saveWeight(newWeight)
-                        showWeightDialog = false
                     }
+                    showWeightDialog = false
                 }) {
-                    Text(stringResource(R.string.ok))
+                    Text(stringResource(R.string.ok), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -345,7 +425,8 @@ fun MainTrackerScreen(
             contentPadding = contentPadding
         ) {
             currentLatLng?.let { latLng ->
-                val paceStr = state.currentPaceSecondsPerKm?.let { paceSec ->
+                val displayPace = state.currentPaceSecondsPerKm ?: state.averagePaceSecondsPerKm
+                val paceStr = displayPace?.let { paceSec ->
                     val mins = paceSec / 60
                     val secs = paceSec % 60
                     "%d:%02d".format(mins, secs)
@@ -391,15 +472,24 @@ fun MainTrackerScreen(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier.fillMaxSize()
                             ) {
-                                Icon(
-                                    imageVector = if (state.activityType == ActivityType.RUNNING) {
-                                        Icons.Default.DirectionsRun
-                                    } else {
-                                        Icons.Default.DirectionsWalk
-                                    },
-                                    contentDescription = null,
-                                    modifier = Modifier.size(24.dp)
-                                )
+                                when (userPreferences.markerIcon) {
+                                    "ORANGE" -> Text("🍊", fontSize = 18.sp)
+                                    "SNEAKER" -> Text("👟", fontSize = 18.sp)
+                                    "FIRE" -> Text("🔥", fontSize = 18.sp)
+                                    "BOLT" -> Text("⚡", fontSize = 18.sp)
+                                    "ROCKET" -> Text("🚀", fontSize = 18.sp)
+                                    else -> {
+                                        Icon(
+                                            imageVector = if (state.activityType == ActivityType.RUNNING) {
+                                                Icons.Default.DirectionsRun
+                                            } else {
+                                                Icons.Default.DirectionsWalk
+                                            },
+                                            contentDescription = null,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
 
@@ -634,7 +724,7 @@ fun MainTrackerScreen(
                                 isTracking = state.isTracking,
                                 distanceMeters = state.distanceMeters,
                                 elapsedTimeSeconds = state.elapsedTimeSeconds,
-                                currentPaceSecondsPerKm = state.currentPaceSecondsPerKm,
+                                currentPaceSecondsPerKm = state.currentPaceSecondsPerKm ?: state.averagePaceSecondsPerKm,
                                 activityType = state.activityType,
                                 modifier = Modifier.padding(bottom = 12.dp)
                             )
@@ -729,11 +819,20 @@ fun MainTrackerScreen(
                                 Spacer(modifier = Modifier.height(14.dp))
 
                                 // Metric Tiles Grid 2x2
-                                val paceStr = state.currentPaceSecondsPerKm?.let { paceSec ->
+                                val displayPace = state.currentPaceSecondsPerKm ?: state.averagePaceSecondsPerKm
+                                val paceStr = displayPace?.let { paceSec ->
                                     val mins = paceSec / 60
                                     val secs = paceSec % 60
                                     "%d:%02d /km".format(mins, secs)
                                 } ?: "-:-- /km"
+
+                                val paceLabel = if (state.currentPaceSecondsPerKm != null) {
+                                    stringResource(R.string.pace_label)
+                                } else if (state.averagePaceSecondsPerKm != null) {
+                                    stringResource(R.string.avg_pace_label)
+                                } else {
+                                    stringResource(R.string.pace_label)
+                                }
 
                                 val h = state.elapsedTimeSeconds / 3600
                                 val m = (state.elapsedTimeSeconds % 3600) / 60
@@ -752,7 +851,7 @@ fun MainTrackerScreen(
                                         modifier = Modifier.weight(1f)
                                     )
                                     MetricTile(
-                                        label = stringResource(R.string.pace_label),
+                                        label = paceLabel,
                                         value = paceStr,
                                         icon = Icons.Default.Speed,
                                         accentColor = Color(0xFF00C853),

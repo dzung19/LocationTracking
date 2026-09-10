@@ -11,6 +11,13 @@
     <!-- Main Screen -->
     <string name="body_weight_title">Body Weight (kg)</string>
     <string name="weight_label">Weight in kg</string>
+    <string name="map_marker_title">Map Marker Icon</string>
+    <string name="marker_default">Runner</string>
+    <string name="marker_orange">Citrus</string>
+    <string name="marker_sneaker">Shoe</string>
+    <string name="marker_fire">Blaze</string>
+    <string name="marker_bolt">Speed</string>
+    <string name="marker_rocket">Rocket</string>
     <string name="recenter_map">Recenter Map</string>
     <string name="loc_permission_req">Location Permission Required</string>
     <string name="loc_permission_desc">Please grant permission to track your activity and view your current location.</string>

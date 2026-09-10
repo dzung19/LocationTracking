@@ -50,6 +50,12 @@ class LocationViewModel(
         }
     }
 
+    fun saveMarkerIcon(icon: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.saveMarkerIcon(icon)
+        }
+    }
+
     private var activeService: LocationTrackingService? = null
     private var serviceCollectorJob: Job? = null
 
