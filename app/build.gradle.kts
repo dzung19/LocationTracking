@@ -8,6 +8,7 @@ plugins {
   alias(libs.plugins.secrets)
   alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.google.services)
+  alias(libs.plugins.firebase.crashlytics)
 }
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
@@ -22,8 +23,8 @@ android {
     applicationId = "com.dzung.runner.locationtracker"
     minSdk = 28
     targetSdk = 37
-    versionCode = 3
-    versionName = "1.1"
+    versionCode = 4
+    versionName = "1.2"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "dummy_key"
@@ -74,7 +75,6 @@ android {
       buildConfigField("String", "REMOVE_ADS_SKU", "\"android.test.purchased\"")
       buildConfigField("Boolean", "ADS_DISABLED", "false")
       manifestPlaceholders["caAppPubId"] = "ca-app-pub-3940256099942544~3347511713"
-      buildConfigField("Boolean", "ADS_DISABLED", "false")
       signingConfigs.findByName("debugConfig")?.let {
         signingConfig = it
       }
@@ -102,6 +102,7 @@ ksp {
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
+  implementation(libs.firebase.crashlytics)
   // implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
   // implementation(libs.androidx.camera.camera2)
@@ -115,6 +116,7 @@ dependencies {
   implementation(libs.androidx.compose.ui.graphics)
   implementation(libs.androidx.compose.ui.tooling.preview)
   implementation(libs.androidx.core.ktx)
+  implementation(libs.androidx.core.splashscreen)
   implementation(libs.androidx.datastore.preferences)
   implementation(libs.androidx.lifecycle.runtime.compose)
   implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -136,6 +138,10 @@ dependencies {
   implementation(libs.maps.compose)
   implementation(libs.play.services.maps)
   implementation(libs.retrofit)
+  
+  // Play In-App Update
+  implementation(libs.app.update)
+  implementation(libs.app.update.ktx)
   
   // Koin
   implementation(platform(libs.koin.bom))

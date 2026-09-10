@@ -9,6 +9,7 @@ import com.dzung.runner.locationtracker.di.appModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -16,6 +17,12 @@ import kotlinx.coroutines.launch
 class LocationTrackingApp : Application() {
     override fun onCreate() {
         super.onCreate()
+
+        try {
+            FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(true)
+        } catch (e: Exception) {
+            Log.e("LocationTrackingApp", "Error enabling Firebase Crashlytics", e)
+        }
         
         startKoin {
             androidContext(this@LocationTrackingApp)

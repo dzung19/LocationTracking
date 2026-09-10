@@ -28,6 +28,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.res.stringResource
 import com.dzung.runner.locationtracker.R
 import com.dzung.runner.locationtracker.HistoryViewModel
+import com.dzung.runner.locationtracker.components.BannerAd
 import com.dzung.runner.locationtracker.data.database.ActivityType
 import com.dzung.runner.locationtracker.data.database.LocationPoint
 import com.dzung.runner.locationtracker.data.database.RunSession
@@ -156,6 +157,13 @@ fun HistoryScreen(
                         todayStats = todayStats,
                         weekStats = weekStats,
                         monthStats = monthStats
+                    )
+                }
+
+                item {
+                    BannerAd(
+                        modifier = Modifier.fillMaxWidth(),
+                        adKey = "history_banner"
                     )
                 }
 

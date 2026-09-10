@@ -178,3 +178,12 @@
 -keep class com.google.firebase.remoteconfig.** { *; }
 -dontwarn com.google.firebase.remoteconfig.**
 
+# -----------------------------------------------------------------------------
+# 11. BuildConfig (Required for Dynamic Reflection in Ads module)
+# -----------------------------------------------------------------------------
+-keep class com.dzung.runner.locationtracker.BuildConfig { *; }
+-keepclassmembers class com.dzung.runner.locationtracker.BuildConfig {
+    public static final java.lang.String *;
+    public static final boolean *;
+}
+

@@ -22,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import com.dzung.runner.locationtracker.R
 import com.dzung.runner.locationtracker.HistoryViewModel
+import com.dzung.runner.locationtracker.components.BannerAd
 import com.dzung.runner.locationtracker.data.database.ActivityType
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
@@ -112,6 +113,14 @@ fun RunDetailScreen(
                         }
                     }
                 }
+            )
+        },
+        bottomBar = {
+            BannerAd(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding(),
+                adKey = "detail_banner"
             )
         },
         modifier = modifier

@@ -1,13 +1,17 @@
 package com.dzung.runner.locationtracker.data.repository
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import java.io.IOException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 
 val Context.locationDataStore: DataStore<Preferences> by preferencesDataStore(name = "LocationPrefs")
@@ -22,6 +26,7 @@ data class UserPreferences(
 class UserPreferencesRepository(private val context: Context) {
 
     companion object {
+        private const val TAG = "UserPreferencesRepo"
         val KEY_LATITUDE = doublePreferencesKey("last_lat")
         val KEY_LONGITUDE = doublePreferencesKey("last_lon")
         val KEY_WEIGHT = floatPreferencesKey("user_weight")
@@ -31,27 +36,44 @@ class UserPreferencesRepository(private val context: Context) {
         const val DEFAULT_WEIGHT = 70f
     }
 
-    val userPreferencesFlow: Flow<UserPreferences> = context.locationDataStore.data.map { prefs ->
-        val hasLat = prefs.contains(KEY_LATITUDE)
-        val hasLon = prefs.contains(KEY_LONGITUDE)
-        UserPreferences(
-            latitude = prefs[KEY_LATITUDE] ?: DEFAULT_LATITUDE,
-            longitude = prefs[KEY_LONGITUDE] ?: DEFAULT_LONGITUDE,
-            weight = prefs[KEY_WEIGHT] ?: DEFAULT_WEIGHT,
-            hasSavedLocation = hasLat && hasLon
-        )
-    }
+    val userPreferencesFlow: Flow<UserPreferences> = context.locationDataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                Log.e(TAG, "Error reading location preferences from DataStore", exception)
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { prefs ->
+            val hasLat = prefs.contains(KEY_LATITUDE)
+            val hasLon = prefs.contains(KEY_LONGITUDE)
+            UserPreferences(
+                latitude = prefs[KEY_LATITUDE] ?: DEFAULT_LATITUDE,
+                longitude = prefs[KEY_LONGITUDE] ?: DEFAULT_LONGITUDE,
+                weight = prefs[KEY_WEIGHT] ?: DEFAULT_WEIGHT,
+                hasSavedLocation = hasLat && hasLon
+            )
+        }
 
     suspend fun saveLocation(latitude: Double, longitude: Double) {
-        context.locationDataStore.edit { prefs ->
-            prefs[KEY_LATITUDE] = latitude
-            prefs[KEY_LONGITUDE] = longitude
+        try {
+            context.locationDataStore.edit { prefs ->
+                prefs[KEY_LATITUDE] = latitude
+                prefs[KEY_LONGITUDE] = longitude
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving location coordinates to DataStore", e)
         }
     }
 
     suspend fun saveWeight(weight: Float) {
-        context.locationDataStore.edit { prefs ->
-            prefs[KEY_WEIGHT] = weight
+        try {
+            context.locationDataStore.edit { prefs ->
+                prefs[KEY_WEIGHT] = weight
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving user weight to DataStore", e)
         }
     }
 }

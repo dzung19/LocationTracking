@@ -115,9 +115,10 @@ class MonetizationManager private constructor(
     fun loadBannerAd(
         activity: Activity,
         container: ViewGroup,
+        adKey: String = "default_banner",
         listener: BannerAdManager.BannerAdListener? = null
     ) {
-        Log.i(TAG, "🎯 loadBannerAd() called")
+        Log.i(TAG, "🎯 loadBannerAd() called with adKey: $adKey")
         Log.i(TAG, "📱 Activity: ${activity.localClassName}")
         Log.i(TAG, "📦 Container: ${container.javaClass.simpleName}")
         Log.i(TAG, "🔧 Ad Unit ID: ${config.defaultBannerAdUnitId}")
@@ -126,7 +127,7 @@ class MonetizationManager private constructor(
         loadBannerAd(
             activity = activity,
             container = container,
-            adKey = "default_banner",
+            adKey = adKey,
             adUnitId = config.defaultBannerAdUnitId,
             listener = listener
         )

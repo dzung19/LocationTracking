@@ -32,3 +32,10 @@
 # Firebase Remote Config
 -keep class com.google.firebase.remoteconfig.** { *; }
 -dontwarn com.google.firebase.remoteconfig.**
+
+# Keep BuildConfig for dynamic reflection in Ads module
+-keep class **.BuildConfig { *; }
+-keepclassmembers class **.BuildConfig {
+    public static final java.lang.String *;
+    public static final boolean *;
+}

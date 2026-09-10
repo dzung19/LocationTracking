@@ -37,6 +37,8 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.model.LatLng
+import com.google.firebase.crashlytics.FirebaseCrashlytics
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -46,6 +48,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -80,8 +83,15 @@ class LocationTrackingService : Service(), SensorEventListener {
     private lateinit var sensorManager: SensorManager
     private var pressureSensor: Sensor? = null
 
-    // Run Tracker specifics
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // Handler to catch and log any unhandled background coroutine exceptions, preventing app crash
+    private val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        Log.e(TAG, "Uncaught exception in LocationTrackingService coroutine scope", throwable)
+        try {
+            FirebaseCrashlytics.getInstance().recordException(throwable)
+        } catch (ignored: Exception) {}
+    }
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + coroutineExceptionHandler)
+    
     private var timerJob: Job? = null
     private var currentSessionId: Long? = null
     private var previousLocation: Location? = null
@@ -89,7 +99,15 @@ class LocationTrackingService : Service(), SensorEventListener {
     private var accumulatedCalories: Float = 0f
     private var startTimeMillis: Long = 0L
     private var currentWeightKg: Float = 70f
+    private var movingTimeSeconds: Long = 0L
+    private var smoothedSpeedMps: Float = 0f
+    private var isCurrentlyMoving: Boolean = false
+    private var lastMovingTimestampMs: Long = 0L
     
+    // Guard against simultaneous or re-entrant start calls
+    @Volatile
+    private var isStartingTracking: Boolean = false
+
     // Ghost Runner data
     private var ghostPoints = listOf<GhostPoint>()
     
@@ -117,10 +135,14 @@ class LocationTrackingService : Service(), SensorEventListener {
         setupLocationCallback()
         fetchInitialLocation()
         
-        // Observe weight changes from DataStore
+        // Observe weight changes from DataStore safely
         serviceScope.launch {
-            userPreferencesRepository.userPreferencesFlow.collect { prefs ->
-                currentWeightKg = prefs.weight
+            try {
+                userPreferencesRepository.userPreferencesFlow.collect { prefs ->
+                    currentWeightKg = if (prefs.weight > 0f && !prefs.weight.isNaN()) prefs.weight else 70f
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error collecting user preferences in service", e)
             }
         }
     }
@@ -143,14 +165,21 @@ class LocationTrackingService : Service(), SensorEventListener {
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
-        if (event?.sensor?.type == Sensor.TYPE_PRESSURE) {
-            val pressure = event.values[0]
-            val altitude = SensorManager.getAltitude(SensorManager.PRESSURE_STANDARD_ATMOSPHERE, pressure)
-            
-            if (lastSlopeElevation == 0f) {
-                lastSlopeElevation = altitude
+        try {
+            if (event?.sensor?.type == Sensor.TYPE_PRESSURE) {
+                val pressure = event.values?.getOrNull(0) ?: return
+                if (pressure <= 0f || pressure.isNaN()) return
+                
+                val altitude = SensorManager.getAltitude(SensorManager.PRESSURE_STANDARD_ATMOSPHERE, pressure)
+                if (altitude.isNaN() || altitude.isInfinite()) return
+                
+                if (lastSlopeElevation == 0f) {
+                    lastSlopeElevation = altitude
+                }
+                currentElevation = altitude
             }
-            currentElevation = altitude
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing sensor change", e)
         }
     }
 
@@ -169,87 +198,174 @@ class LocationTrackingService : Service(), SensorEventListener {
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
                 super.onLocationResult(result)
-                val location = result.lastLocation ?: return
-                
-                // Calculate distance and time delta
-                var distanceDelta = 0f
-                var timeDeltaMs = 0L
-                previousLocation?.let { prevLoc ->
-                    distanceDelta = prevLoc.distanceTo(location)
-                    timeDeltaMs = location.time - prevLoc.time
-                    accumulatedDistance += distanceDelta
-                }
-                if (previousLocation == null) {
-                    alignGhostRoute(location.latitude, location.longitude)
-                }
-                previousLocation = location
+                try {
+                    val location = result.lastLocation ?: return
+                    if (location.latitude.isNaN() || location.longitude.isNaN()) return
 
-                val latLng = LatLng(location.latitude, location.longitude)
-                
-                // Calculate Calories using MET formula
-                val timeDeltaMinutes = timeDeltaMs / 60000f
-                val speedMps = if (location.hasSpeed()) {
-                    location.speed
-                } else if (timeDeltaMs > 0) {
-                    distanceDelta / (timeDeltaMs / 1000f)
-                } else {
-                    0f
-                }
-                val speedKmh = speedMps * 3.6f
-                val currentActivityType = _trackingState.value.activityType
-                val met = getMET(speedKmh, currentActivityType)
-                
-                // Formula: Calories/min = (MET * Weight(kg) * 3.5) / 200
-                val weightKg = currentWeightKg
-                val caloriesDelta = (met * weightKg * 3.5f / 200f) * timeDeltaMinutes
-                accumulatedCalories += caloriesDelta
+                    // Accuracy gate: ignore poor accuracy fixes (> 25m) for distance/speed
+                    if (location.hasAccuracy() && location.accuracy > 25.0f) {
+                        _trackingState.update {
+                            it.copy(
+                                latitude = location.latitude,
+                                longitude = location.longitude,
+                                accuracy = location.accuracy
+                            )
+                        }
+                        return
+                    }
 
-                // Slope calculation
-                val deltaDistanceForSlope = accumulatedDistance - lastSlopeDistance
-                if (deltaDistanceForSlope > 10f && currentElevation != 0f) { // Update slope every 10 meters to smooth noise
-                    val deltaElevation = currentElevation - lastSlopeElevation
-                    currentSlopePercentage = (deltaElevation / deltaDistanceForSlope) * 100f
-                    
-                    lastSlopeDistance = accumulatedDistance
-                    lastSlopeElevation = currentElevation
-                }
+                    // First fix initialization
+                    val prevLoc = previousLocation
+                    if (prevLoc == null) {
+                        previousLocation = location
+                        alignGhostRoute(location.latitude, location.longitude)
+                        val latLng = LatLng(location.latitude, location.longitude)
+                        _trackingState.update { currentState ->
+                            currentState.copy(
+                                isTracking = true,
+                                latitude = location.latitude,
+                                longitude = location.longitude,
+                                accuracy = location.accuracy,
+                                timestamp = location.time,
+                                pathPoints = if (currentState.pathPoints.isEmpty()) listOf(latLng) else currentState.pathPoints,
+                                errorMessage = null
+                            )
+                        }
+                        return
+                    }
 
-                _trackingState.update { currentState ->
-                    val newPath = currentState.pathPoints + latLng
-                    currentState.copy(
-                        isTracking = true,
-                        latitude = location.latitude,
-                        longitude = location.longitude,
-                        accuracy = location.accuracy,
-                        timestamp = location.time,
-                        distanceMeters = accumulatedDistance,
-                        caloriesBurned = accumulatedCalories.toInt(),
-                        elevationMeters = currentElevation,
-                        slopePercentage = currentSlopePercentage,
-                        pathPoints = newPath,
-                        errorMessage = null
-                    )
-                }
+                    // Distance and time delta relative to anchor (previousLocation)
+                    val distFromAnchor = prevLoc.distanceTo(location)
+                    if (distFromAnchor.isNaN() || distFromAnchor.isInfinite() || distFromAnchor < 0f) return
+                    val timeDeltaMs = maxOf(0L, location.time - prevLoc.time)
+                    val timeDeltaSeconds = timeDeltaMs / 1000f
 
-                // Insert point to DB
-                currentSessionId?.let { sid ->
-                    serviceScope.launch {
-                        val point = LocationPoint(
-                            sessionId = sid,
+                    // Determine instantaneous speed (hardware Doppler speed preferred)
+                    val rawSpeedMps = if (location.hasSpeed()) {
+                        location.speed
+                    } else if (timeDeltaSeconds > 0f) {
+                        distFromAnchor / timeDeltaSeconds
+                    } else {
+                        0f
+                    }
+                    val safeRawSpeed = if (rawSpeedMps.isNaN() || rawSpeedMps.isInfinite() || rawSpeedMps < 0f) 0f else rawSpeedMps
+
+                    // Movement detection:
+                    // 1) User has moved >= 2.0m from anchor with speed >= 0.3 m/s (~1.0 km/h)
+                    // 2) OR speed >= 0.8 m/s with displacement >= 1.5m (faster pace with short fix interval)
+                    val isMovingCondition = (safeRawSpeed >= 0.3f && distFromAnchor >= 2.0f) || (safeRawSpeed >= 0.8f && distFromAnchor >= 1.5f)
+
+                    val latLng = LatLng(location.latitude, location.longitude)
+
+                    if (isMovingCondition) {
+                        isCurrentlyMoving = true
+                        lastMovingTimestampMs = System.currentTimeMillis()
+
+                        // Accumulate true distance and advance anchor
+                        accumulatedDistance += distFromAnchor
+                        previousLocation = location
+
+                        // Exponential moving average for smooth pace calculation
+                        smoothedSpeedMps = if (smoothedSpeedMps <= 0.1f) {
+                            safeRawSpeed
+                        } else {
+                            0.35f * safeRawSpeed + 0.65f * smoothedSpeedMps
+                        }
+
+                        // Calculate Calories using MET formula during movement
+                        val timeDeltaMinutes = timeDeltaMs / 60000f
+                        val speedKmh = smoothedSpeedMps * 3.6f
+                        val currentActivityType = _trackingState.value.activityType
+                        val met = getMET(speedKmh, currentActivityType)
+                        val weightKg = if (currentWeightKg > 0f && !currentWeightKg.isNaN()) currentWeightKg else 70f
+                        val caloriesDelta = (met * weightKg * 3.5f / 200f) * timeDeltaMinutes
+                        if (!caloriesDelta.isNaN() && !caloriesDelta.isInfinite() && caloriesDelta > 0f) {
+                            accumulatedCalories += caloriesDelta
+                        }
+
+                        // Slope calculation
+                        val deltaDistanceForSlope = accumulatedDistance - lastSlopeDistance
+                        if (deltaDistanceForSlope > 10f && currentElevation != 0f && !currentElevation.isNaN()) {
+                            val deltaElevation = currentElevation - lastSlopeElevation
+                            val slope = (deltaElevation / deltaDistanceForSlope) * 100f
+                            currentSlopePercentage = if (slope.isNaN() || slope.isInfinite()) 0f else slope
+
+                            lastSlopeDistance = accumulatedDistance
+                            lastSlopeElevation = currentElevation
+                        }
+
+                        // Safely insert point to DB only on real movement
+                        currentSessionId?.let { sid ->
+                            serviceScope.launch {
+                                try {
+                                    val point = LocationPoint(
+                                        sessionId = sid,
+                                        latitude = location.latitude,
+                                        longitude = location.longitude,
+                                        timestamp = location.time
+                                    )
+                                    runDao.insertLocationPoint(point)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error inserting location point to database", e)
+                                }
+                            }
+                        }
+                    } else {
+                        // User is stationary or GPS jitter within anchor deadband
+                        // Anchor (previousLocation) remains fixed so small jitters never integrate!
+                        if (lastMovingTimestampMs == 0L || (System.currentTimeMillis() - lastMovingTimestampMs) > 4000L) {
+                            isCurrentlyMoving = false
+                            smoothedSpeedMps = 0f
+                        }
+                    }
+
+                    // Calculate instantaneous pace (seconds per km). Null when stationary/not moving.
+                    val currentPaceSeconds: Int? = if (isCurrentlyMoving && smoothedSpeedMps >= 0.3f) {
+                        (1000f / smoothedSpeedMps).toInt().coerceIn(120, 1800)
+                    } else {
+                        null
+                    }
+
+                    val safeCalories = if (accumulatedCalories.isNaN() || accumulatedCalories.isInfinite()) 0 else accumulatedCalories.toInt()
+                    val safeDistance = if (accumulatedDistance.isNaN() || accumulatedDistance.isInfinite()) 0f else accumulatedDistance
+
+                    _trackingState.update { currentState ->
+                        val newPath = if (isCurrentlyMoving) currentState.pathPoints + latLng else currentState.pathPoints
+                        currentState.copy(
+                            isTracking = true,
                             latitude = location.latitude,
                             longitude = location.longitude,
-                            timestamp = location.time
+                            accuracy = location.accuracy,
+                            timestamp = location.time,
+                            distanceMeters = safeDistance,
+                            caloriesBurned = safeCalories,
+                            elevationMeters = if (currentElevation.isNaN() || currentElevation.isInfinite()) 0f else currentElevation,
+                            slopePercentage = currentSlopePercentage,
+                            pathPoints = newPath,
+                            currentSpeedMps = if (isCurrentlyMoving) smoothedSpeedMps else 0f,
+                            currentPaceSecondsPerKm = currentPaceSeconds,
+                            isMoving = isCurrentlyMoving,
+                            movingTimeSeconds = movingTimeSeconds,
+                            errorMessage = null
                         )
-                        runDao.insertLocationPoint(point)
                     }
-                }
 
-                // Persist current location to DataStore
-                serviceScope.launch {
-                    userPreferencesRepository.saveLocation(location.latitude, location.longitude)
-                }
+                    // Safely persist current location to DataStore
+                    serviceScope.launch {
+                        try {
+                            userPreferencesRepository.saveLocation(location.latitude, location.longitude)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error saving location to DataStore", e)
+                        }
+                    }
 
-                updateNotificationContent(location)
+                    updateNotificationContent(location)
+                } catch (t: Throwable) {
+                    Log.e(TAG, "Unhandled error in onLocationResult callback", t)
+                    try {
+                        FirebaseCrashlytics.getInstance().recordException(t)
+                    } catch (ignored: Exception) {}
+                }
             }
         }
     }
@@ -265,32 +381,68 @@ class LocationTrackingService : Service(), SensorEventListener {
             try {
                 fusedLocationClient.lastLocation.addOnSuccessListener { loc ->
                     if (loc != null && !_trackingState.value.isTracking) {
-                        _trackingState.update {
-                            it.copy(latitude = loc.latitude, longitude = loc.longitude)
-                        }
-                        serviceScope.launch {
-                            userPreferencesRepository.saveLocation(loc.latitude, loc.longitude)
+                        if (!loc.latitude.isNaN() && !loc.longitude.isNaN()) {
+                            _trackingState.update {
+                                it.copy(latitude = loc.latitude, longitude = loc.longitude)
+                            }
+                            serviceScope.launch {
+                                try {
+                                    userPreferencesRepository.saveLocation(loc.latitude, loc.longitude)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error saving initial location", e)
+                                }
+                            }
                         }
                     }
+                }.addOnFailureListener { e ->
+                    Log.w(TAG, "Failed to get last known location", e)
                 }
-            } catch (e: SecurityException) {
-                Log.w(TAG, "Location permission missing", e)
+            } catch (e: Exception) {
+                Log.w(TAG, "Location permission missing or error fetching initial location", e)
             }
         }
     }
 
     fun startLocationUpdates() {
-        if (_trackingState.value.isTracking) return
+        if (_trackingState.value.isTracking || isStartingTracking) return
+        isStartingTracking = true
 
         val hasFine = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         val hasCoarse = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
         if (!hasFine && !hasCoarse) {
+            isStartingTracking = false
             _trackingState.update { it.copy(errorMessage = "Location permission is not granted.") }
+            // To prevent ForegroundServiceDidNotStartInTimeException on Android 8+ when called via startForegroundService,
+            // post a brief notification, remove it, and immediately stopSelf.
+            try {
+                val notification = buildStatusNotification("Location permission required")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+                } else {
+                    startForeground(NOTIFICATION_ID, notification)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                } else {
+                    @Suppress("DEPRECATION")
+                    stopForeground(true)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling start without permission", e)
+            }
+            stopSelf()
             return
         }
 
         try {
+            val notification = buildStatusNotification("Starting location tracking...")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+
             val priority = if (hasFine) Priority.PRIORITY_HIGH_ACCURACY else Priority.PRIORITY_BALANCED_POWER_ACCURACY
             val locationRequest = LocationRequest.Builder(priority, 4000L).apply {
                 setMinUpdateIntervalMillis(2000L)
@@ -303,16 +455,13 @@ class LocationTrackingService : Service(), SensorEventListener {
                 Looper.getMainLooper()
             )
 
-            val notification = buildStatusNotification("Starting location tracking...")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
-            } else {
-                startForeground(NOTIFICATION_ID, notification)
-            }
-
             // Reset state
             accumulatedDistance = 0f
             accumulatedCalories = 0f
+            movingTimeSeconds = 0L
+            smoothedSpeedMps = 0f
+            isCurrentlyMoving = false
+            lastMovingTimestampMs = 0L
             previousLocation = null
             startTimeMillis = System.currentTimeMillis()
             
@@ -322,7 +471,11 @@ class LocationTrackingService : Service(), SensorEventListener {
             currentSlopePercentage = 0f
             
             pressureSensor?.let {
-                sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+                try {
+                    sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error registering pressure sensor", e)
+                }
             }
 
             _trackingState.update {
@@ -331,6 +484,10 @@ class LocationTrackingService : Service(), SensorEventListener {
                     errorMessage = null,
                     distanceMeters = 0f,
                     elapsedTimeSeconds = 0L,
+                    movingTimeSeconds = 0L,
+                    currentSpeedMps = 0f,
+                    currentPaceSecondsPerKm = null,
+                    isMoving = false,
                     caloriesBurned = 0,
                     elevationMeters = 0f,
                     slopePercentage = 0f,
@@ -341,17 +498,37 @@ class LocationTrackingService : Service(), SensorEventListener {
             // Start Timer and DB Session
             val currentActivityType = _trackingState.value.activityType
             serviceScope.launch {
-                val session = RunSession(
-                    startTimeInMillis = startTimeMillis,
-                    activityType = currentActivityType
-                )
-                currentSessionId = runDao.insertRunSession(session)
+                try {
+                    val session = RunSession(
+                        startTimeInMillis = startTimeMillis,
+                        activityType = currentActivityType
+                    )
+                    currentSessionId = runDao.insertRunSession(session)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Database error inserting run session", e)
+                }
             }
 
             startTimer()
             
-        } catch (e: SecurityException) {
-            _trackingState.update { it.copy(errorMessage = "SecurityException: ${e.message}") }
+        } catch (e: Exception) {
+            // Catches ForegroundServiceStartNotAllowedException, SecurityException, IllegalStateException, etc.
+            Log.e(TAG, "Fatal error starting location updates or foreground service", e)
+            try {
+                FirebaseCrashlytics.getInstance().recordException(e)
+            } catch (ignored: Exception) {}
+            _trackingState.update { it.copy(isTracking = false, errorMessage = "Failed to start tracking: ${e.message}") }
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                } else {
+                    @Suppress("DEPRECATION")
+                    stopForeground(true)
+                }
+            } catch (ignored: Exception) {}
+            stopSelf()
+        } finally {
+            isStartingTracking = false
         }
     }
 
@@ -386,26 +563,58 @@ class LocationTrackingService : Service(), SensorEventListener {
     private fun startTimer() {
         timerJob?.cancel()
         timerJob = serviceScope.launch {
-            while (true) {
-                delay(1000L)
-                val elapsedSeconds = (System.currentTimeMillis() - startTimeMillis) / 1000
-                
-                if (ghostPoints.isNotEmpty()) {
-                    val ghostState = interpolateGhost(elapsedSeconds, ghostPoints)
-                    _trackingState.update { state ->
-                        state.copy(
-                            elapsedTimeSeconds = elapsedSeconds,
-                            ghostLatitude = ghostState.latitude,
-                            ghostLongitude = ghostState.longitude,
-                            ghostDistanceMeters = ghostState.distanceMeters
-                        )
+            while (isActive) {
+                try {
+                    delay(1000L)
+                    val elapsedSeconds = if (startTimeMillis > 0L) {
+                        maxOf(0L, (System.currentTimeMillis() - startTimeMillis) / 1000)
+                    } else 0L
+
+                    // Check timeout for stationary transition
+                    if (isCurrentlyMoving) {
+                        if (lastMovingTimestampMs > 0L && (System.currentTimeMillis() - lastMovingTimestampMs) > 4000L) {
+                            isCurrentlyMoving = false
+                            smoothedSpeedMps = 0f
+                        } else {
+                            movingTimeSeconds++
+                        }
                     }
-                } else {
-                    _trackingState.update { state ->
-                        state.copy(
-                            elapsedTimeSeconds = elapsedSeconds
-                        )
+
+                    val currentPace = if (isCurrentlyMoving && smoothedSpeedMps >= 0.3f) {
+                        (1000f / smoothedSpeedMps).toInt().coerceIn(120, 1800)
+                    } else {
+                        null
                     }
+                    
+                    if (ghostPoints.isNotEmpty()) {
+                        val ghostState = interpolateGhost(elapsedSeconds, ghostPoints)
+                        _trackingState.update { state ->
+                            state.copy(
+                                elapsedTimeSeconds = elapsedSeconds,
+                                movingTimeSeconds = movingTimeSeconds,
+                                currentSpeedMps = if (isCurrentlyMoving) smoothedSpeedMps else 0f,
+                                currentPaceSecondsPerKm = currentPace,
+                                isMoving = isCurrentlyMoving,
+                                ghostLatitude = ghostState.latitude,
+                                ghostLongitude = ghostState.longitude,
+                                ghostDistanceMeters = ghostState.distanceMeters
+                            )
+                        }
+                    } else {
+                        _trackingState.update { state ->
+                            state.copy(
+                                elapsedTimeSeconds = elapsedSeconds,
+                                movingTimeSeconds = movingTimeSeconds,
+                                currentSpeedMps = if (isCurrentlyMoving) smoothedSpeedMps else 0f,
+                                currentPaceSecondsPerKm = currentPace,
+                                isMoving = isCurrentlyMoving
+                            )
+                        }
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in tracking timer loop", e)
                 }
             }
         }
@@ -414,31 +623,48 @@ class LocationTrackingService : Service(), SensorEventListener {
     fun stopLocationUpdates() {
         if (!_trackingState.value.isTracking) return
 
-        fusedLocationClient.removeLocationUpdates(locationCallback)
-        sensorManager.unregisterListener(this)
+        try {
+            fusedLocationClient.removeLocationUpdates(locationCallback)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error removing location updates", e)
+        }
+        try {
+            sensorManager.unregisterListener(this)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error unregistering sensor listener", e)
+        }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-        } else {
-            @Suppress("DEPRECATION")
-            stopForeground(true)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping foreground status", e)
         }
 
         timerJob?.cancel()
 
         val finalState = _trackingState.value
         serviceScope.launch {
-            currentSessionId?.let { sid ->
-                runDao.getRunSession(sid)?.let { session ->
-                    val updatedSession = session.copy(
-                        endTimeInMillis = System.currentTimeMillis(),
-                        totalDistanceMeters = finalState.distanceMeters,
-                        totalCalories = finalState.caloriesBurned
-                    )
-                    runDao.updateRunSession(updatedSession)
+            try {
+                currentSessionId?.let { sid ->
+                    runDao.getRunSession(sid)?.let { session ->
+                        val updatedSession = session.copy(
+                            endTimeInMillis = System.currentTimeMillis(),
+                            totalDistanceMeters = finalState.distanceMeters,
+                            totalCalories = finalState.caloriesBurned
+                        )
+                        runDao.updateRunSession(updatedSession)
+                    }
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Database error updating run session", e)
+            } finally {
+                currentSessionId = null
             }
-            currentSessionId = null
 
             // Shift state updates and stopSelf to Main dispatcher only after the DB write has succeeded
             withContext(Dispatchers.Main) {
@@ -454,11 +680,18 @@ class LocationTrackingService : Service(), SensorEventListener {
     }
 
     private fun updateNotificationContent(location: Location) {
-        val state = _trackingState.value
-        val distanceKm = state.distanceMeters / 1000f
-        val text = "Dist: %.2f km | Time: %d s".format(distanceKm, state.elapsedTimeSeconds)
-        val notification = buildStatusNotification(text)
-        notificationManager.notify(NOTIFICATION_ID, notification)
+        try {
+            val state = _trackingState.value
+            val distanceKm = state.distanceMeters / 1000f
+            val paceDisplay = state.currentPaceSecondsPerKm?.let { paceSec ->
+                "%d:%02d/km".format(paceSec / 60, paceSec % 60)
+            } ?: "--:--"
+            val text = "Dist: %.2f km | Pace: %s | Time: %d s".format(distanceKm, paceDisplay, state.elapsedTimeSeconds)
+            val notification = buildStatusNotification(text)
+            notificationManager.notify(NOTIFICATION_ID, notification)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update notification content", e)
+        }
     }
 
     private fun buildStatusNotification(contentText: String): Notification {
@@ -507,32 +740,41 @@ class LocationTrackingService : Service(), SensorEventListener {
         }
         
         serviceScope.launch {
-            val points = runDao.getLocationPointsForSessionOnce(sessionId)
-            val sorted = points.sortedBy { it.timestamp }
-            val ghostStartTime = sorted.firstOrNull()?.timestamp ?: 0L
-            val pointsList = mutableListOf<GhostPoint>()
-            var dist = 0f
-            var prevPoint: LocationPoint? = null
-            sorted.forEach { pt ->
-                prevPoint?.let { prev ->
-                    val results = FloatArray(1)
-                    Location.distanceBetween(prev.latitude, prev.longitude, pt.latitude, pt.longitude, results)
-                    dist += results[0]
+            try {
+                val points = runDao.getLocationPointsForSessionOnce(sessionId)
+                val sorted = points.sortedBy { it.timestamp }
+                val ghostStartTime = sorted.firstOrNull()?.timestamp ?: 0L
+                val pointsList = mutableListOf<GhostPoint>()
+                var dist = 0f
+                var prevPoint: LocationPoint? = null
+                sorted.forEach { pt ->
+                    if (!pt.latitude.isNaN() && !pt.longitude.isNaN()) {
+                        prevPoint?.let { prev ->
+                            val results = FloatArray(1)
+                            Location.distanceBetween(prev.latitude, prev.longitude, pt.latitude, pt.longitude, results)
+                            val stepDist = results[0]
+                            if (!stepDist.isNaN() && stepDist >= 0f) {
+                                dist += stepDist
+                            }
+                        }
+                        val elapsed = (pt.timestamp - ghostStartTime) / 1000
+                        pointsList.add(GhostPoint(LatLng(pt.latitude, pt.longitude), elapsed, dist))
+                        prevPoint = pt
+                    }
                 }
-                val elapsed = (pt.timestamp - ghostStartTime) / 1000
-                pointsList.add(GhostPoint(LatLng(pt.latitude, pt.longitude), elapsed, dist))
-                prevPoint = pt
+                ghostPoints = pointsList
+                
+                val pathLatLngs = pointsList.map { it.latLng }
+                _trackingState.update { it.copy(
+                    selectedGhostSessionId = sessionId,
+                    ghostPathPoints = pathLatLngs,
+                    ghostLatitude = pathLatLngs.firstOrNull()?.latitude,
+                    ghostLongitude = pathLatLngs.firstOrNull()?.longitude,
+                    ghostDistanceMeters = 0f
+                ) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading ghost session points", e)
             }
-            ghostPoints = pointsList
-            
-            val pathLatLngs = pointsList.map { it.latLng }
-            _trackingState.update { it.copy(
-                selectedGhostSessionId = sessionId,
-                ghostPathPoints = pathLatLngs,
-                ghostLatitude = pathLatLngs.firstOrNull()?.latitude,
-                ghostLongitude = pathLatLngs.firstOrNull()?.longitude,
-                ghostDistanceMeters = 0f
-            ) }
         }
     }
 
@@ -573,39 +815,52 @@ class LocationTrackingService : Service(), SensorEventListener {
     }
 
     private fun alignGhostRoute(userStartLat: Double, userStartLon: Double) {
-        val firstGhost = ghostPoints.firstOrNull() ?: return
-        
-        val results = FloatArray(1)
-        Location.distanceBetween(
-            userStartLat, userStartLon,
-            firstGhost.latLng.latitude, firstGhost.latLng.longitude,
-            results
-        )
-        val distance = results[0]
-        
-        // If the start points are more than 150m apart, offset the whole path to align with user start
-        if (distance > 150f) {
-            val latOffset = userStartLat - firstGhost.latLng.latitude
-            val lonOffset = userStartLon - firstGhost.latLng.longitude
+        try {
+            if (userStartLat.isNaN() || userStartLon.isNaN()) return
+            val firstGhost = ghostPoints.firstOrNull() ?: return
+            if (firstGhost.latLng.latitude.isNaN() || firstGhost.latLng.longitude.isNaN()) return
             
-            ghostPoints = ghostPoints.map { pt ->
-                pt.copy(
-                    latLng = LatLng(pt.latLng.latitude + latOffset, pt.latLng.longitude + lonOffset)
-                )
+            val results = FloatArray(1)
+            Location.distanceBetween(
+                userStartLat, userStartLon,
+                firstGhost.latLng.latitude, firstGhost.latLng.longitude,
+                results
+            )
+            val distance = results[0]
+            if (distance.isNaN()) return
+            
+            // If the start points are more than 150m apart, offset the whole path to align with user start
+            if (distance > 150f) {
+                val latOffset = userStartLat - firstGhost.latLng.latitude
+                val lonOffset = userStartLon - firstGhost.latLng.longitude
+                
+                ghostPoints = ghostPoints.mapNotNull { pt ->
+                    val newLat = pt.latLng.latitude + latOffset
+                    val newLon = pt.latLng.longitude + lonOffset
+                    if (newLat.isNaN() || newLon.isNaN()) null
+                    else pt.copy(latLng = LatLng(newLat, newLon))
+                }
+                
+                val pathLatLngs = ghostPoints.map { it.latLng }
+                _trackingState.update { it.copy(
+                    ghostPathPoints = pathLatLngs,
+                    ghostLatitude = pathLatLngs.firstOrNull()?.latitude,
+                    ghostLongitude = pathLatLngs.firstOrNull()?.longitude
+                ) }
             }
-            
-            val pathLatLngs = ghostPoints.map { it.latLng }
-            _trackingState.update { it.copy(
-                ghostPathPoints = pathLatLngs,
-                ghostLatitude = pathLatLngs.firstOrNull()?.latitude,
-                ghostLongitude = pathLatLngs.firstOrNull()?.longitude
-            ) }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error aligning ghost route", e)
         }
     }
 
     override fun onDestroy() {
-        timerJob?.cancel()
-        fusedLocationClient.removeLocationUpdates(locationCallback)
+        try {
+            timerJob?.cancel()
+            fusedLocationClient.removeLocationUpdates(locationCallback)
+            sensorManager.unregisterListener(this)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during service onDestroy cleanup", e)
+        }
         super.onDestroy()
     }
 }

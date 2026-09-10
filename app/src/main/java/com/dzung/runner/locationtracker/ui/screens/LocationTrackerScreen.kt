@@ -5,8 +5,6 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.Keep
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
@@ -17,6 +15,10 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,11 +45,11 @@ sealed interface ScreenKey : NavKey
 
 @Keep
 @Serializable
-object TrackerKey : ScreenKey
+data object TrackerKey : ScreenKey
 
 @Keep
 @Serializable
-object HistoryKey : ScreenKey
+data object HistoryKey : ScreenKey
 
 @Keep
 @Serializable
@@ -57,7 +59,9 @@ data class DetailKey(val sessionId: Long) : ScreenKey
 fun LocationTrackerApp(
     viewModel: LocationViewModel,
     modifier: Modifier = Modifier,
-    onStartService: () -> Unit
+    onStartService: () -> Unit,
+    isUpdateDownloaded: Boolean = false,
+    onCompleteUpdate: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val isServiceBound by viewModel.isServiceBound.collectAsStateWithLifecycle()
@@ -65,11 +69,27 @@ fun LocationTrackerApp(
 
     val isAppReady = isServiceBound && userPreferences != null
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(isUpdateDownloaded) {
+        if (isUpdateDownloaded) {
+            val result = snackbarHostState.showSnackbar(
+                message = "An update has just been downloaded.",
+                actionLabel = "RESTART",
+                duration = SnackbarDuration.Indefinite
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                onCompleteUpdate()
+            }
+        }
+    }
+
     val backStack = rememberNavBackStack(TrackerKey)
     val currentKey = backStack.lastOrNull()
-    val showBottomBar = isAppReady && (currentKey is TrackerKey || currentKey is HistoryKey)
+    val showBottomBar = currentKey is TrackerKey || currentKey is HistoryKey
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar(
@@ -116,100 +136,90 @@ fun LocationTrackerApp(
         },
         modifier = modifier
     ) { innerPadding ->
-        Crossfade(
-            targetState = isAppReady,
-            animationSpec = tween(durationMillis = 400),
-            label = "splash_crossfade"
-        ) { ready ->
-            if (!ready) {
-                SplashScreen()
-            } else {
-                NavDisplay(
-                    backStack = backStack,
-                    onBack = {
-                        if (backStack.size > 1) {
-                            backStack.removeLastOrNull()
-                        }
-                    },
-                    entryProvider = entryProvider {
-                        entry<TrackerKey> {
-                            val trackingState by viewModel.trackingState.collectAsStateWithLifecycle()
+        NavDisplay(
+            backStack = backStack,
+            onBack = {
+                if (backStack.size > 1) {
+                    backStack.removeLastOrNull()
+                }
+            },
+            entryProvider = entryProvider {
+                entry<TrackerKey> {
+                    val trackingState by viewModel.trackingState.collectAsStateWithLifecycle()
 
-                            var hasLocationPermission by remember {
-                                mutableStateOf(context.checkLocationPermissions())
-                            }
+                    var hasLocationPermission by remember {
+                        mutableStateOf(context.checkLocationPermissions())
+                    }
 
-                            val permissionLauncher = rememberLauncherForActivityResult(
-                                contract = ActivityResultContracts.RequestMultiplePermissions()
-                            ) { permissions ->
-                                val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
-                                val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-                                hasLocationPermission = fineGranted || coarseGranted
-                            }
+                    val permissionLauncher = rememberLauncherForActivityResult(
+                        contract = ActivityResultContracts.RequestMultiplePermissions()
+                    ) { permissions ->
+                        val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+                        val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+                        hasLocationPermission = fineGranted || coarseGranted
+                    }
 
-                            LaunchedEffect(Unit) {
-                                if (!hasLocationPermission) {
-                                    val req = mutableListOf(
-                                        Manifest.permission.ACCESS_FINE_LOCATION,
-                                        Manifest.permission.ACCESS_COARSE_LOCATION
-                                    ).apply {
-                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                            add(Manifest.permission.POST_NOTIFICATIONS)
-                                        }
-                                    }.toTypedArray()
-                                    permissionLauncher.launch(req)
+                    LaunchedEffect(Unit) {
+                        if (!hasLocationPermission) {
+                            val req = mutableListOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            ).apply {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    add(Manifest.permission.POST_NOTIFICATIONS)
                                 }
+                            }.toTypedArray()
+                            permissionLauncher.launch(req)
+                        }
+                    }
+
+                    MainTrackerScreen(
+                        viewModel = viewModel,
+                        state = trackingState,
+                        userPreferences = userPreferences,
+                        onStartService = onStartService,
+                        hasLocationPermission = hasLocationPermission,
+                        onRequestPermission = {
+                            val req = mutableListOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            ).apply {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    add(Manifest.permission.POST_NOTIFICATIONS)
+                                }
+                            }.toTypedArray()
+                            permissionLauncher.launch(req)
+                        },
+                        contentPadding = innerPadding
+                    )
+                }
+
+                entry<HistoryKey> {
+                    val historyViewModel: HistoryViewModel = koinViewModel()
+                    HistoryScreen(
+                        viewModel = historyViewModel,
+                        onNavigateToDetail = { sessionId ->
+                            backStack.add(DetailKey(sessionId))
+                        },
+                        modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
+                    )
+                }
+
+                entry<DetailKey> { key ->
+                    val historyViewModel: HistoryViewModel = koinViewModel()
+                    RunDetailScreen(
+                        sessionId = key.sessionId,
+                        viewModel = historyViewModel,
+                        onBackClick = {
+                            if (backStack.size > 1) {
+                                backStack.removeLastOrNull()
                             }
-
-                            MainTrackerScreen(
-                                viewModel = viewModel,
-                                state = trackingState,
-                                userPreferences = userPreferences!!,
-                                onStartService = onStartService,
-                                hasLocationPermission = hasLocationPermission,
-                                onRequestPermission = {
-                                    val req = mutableListOf(
-                                        Manifest.permission.ACCESS_FINE_LOCATION,
-                                        Manifest.permission.ACCESS_COARSE_LOCATION
-                                    ).apply {
-                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                            add(Manifest.permission.POST_NOTIFICATIONS)
-                                        }
-                                    }.toTypedArray()
-                                    permissionLauncher.launch(req)
-                                },
-                                contentPadding = innerPadding
-                            )
-                        }
-
-                        entry<HistoryKey> {
-                            val historyViewModel: HistoryViewModel = koinViewModel()
-                            HistoryScreen(
-                                viewModel = historyViewModel,
-                                onNavigateToDetail = { sessionId ->
-                                    backStack.add(DetailKey(sessionId))
-                                },
-                                modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
-                            )
-                        }
-
-                        entry<DetailKey> { key ->
-                            val historyViewModel: HistoryViewModel = koinViewModel()
-                            RunDetailScreen(
-                                sessionId = key.sessionId,
-                                viewModel = historyViewModel,
-                                onBackClick = {
-                                    if (backStack.size > 1) {
-                                        backStack.removeLastOrNull()
-                                    }
-                                },
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }

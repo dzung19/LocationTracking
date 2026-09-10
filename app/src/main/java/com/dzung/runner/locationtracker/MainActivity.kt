@@ -15,7 +15,10 @@ import org.koin.androidx.viewmodel.ext.android.viewModel
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dzung.runner.locationtracker.ui.screens.LocationTrackerApp
 import com.dzung.runner.locationtracker.ui.theme.MyApplicationTheme
 
@@ -27,6 +30,7 @@ class MainActivity : ComponentActivity() {
     private val locationViewModel: LocationViewModel by viewModel()
     
     private var isServiceBound = false
+    private lateinit var inAppUpdateHelper: InAppUpdateHelper
 
     // Service Connection handling binder communication
     private val serviceConnection = object : ServiceConnection {
@@ -46,17 +50,41 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        // Keep system splash screen on until service is bound
+        splashScreen.setKeepOnScreenCondition {
+            !locationViewModel.isServiceBound.value
+        }
+
         enableEdgeToEdge()
+
+        inAppUpdateHelper = InAppUpdateHelper(this)
+        inAppUpdateHelper.checkForUpdate()
+
         setContent {
             MyApplicationTheme {
+                val isUpdateDownloaded by inAppUpdateHelper.isUpdateDownloaded.collectAsStateWithLifecycle()
                 LocationTrackerApp(
                     viewModel = locationViewModel,
                     modifier = Modifier.fillMaxSize(),
-                    onStartService = ::startForegroundTrackingService
+                    onStartService = ::startForegroundTrackingService,
+                    isUpdateDownloaded = isUpdateDownloaded,
+                    onCompleteUpdate = inAppUpdateHelper::completeUpdate
                 )
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        inAppUpdateHelper.onResume()
+    }
+
+    override fun onDestroy() {
+        inAppUpdateHelper.onDestroy()
+        super.onDestroy()
     }
 
     override fun onStart() {

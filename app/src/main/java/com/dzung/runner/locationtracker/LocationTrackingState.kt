@@ -21,6 +21,10 @@ data class LocationTrackingState(
     // New metrics for Run Tracker
     val distanceMeters: Float = 0f,
     val elapsedTimeSeconds: Long = 0L,
+    val movingTimeSeconds: Long = 0L,
+    val currentSpeedMps: Float = 0f,
+    val currentPaceSecondsPerKm: Int? = null,
+    val isMoving: Boolean = false,
     val caloriesBurned: Int = 0,
     val elevationMeters: Float = 0f,
     val slopePercentage: Float = 0f,

@@ -1,9 +1,12 @@
-package com.dzungphung.aimodel.econimical.smartspend.ui.components
+package com.dzung.runner.locationtracker.components
 
 import android.app.Activity
 import android.util.Log
 import android.view.View
 import android.widget.FrameLayout
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,57 +32,88 @@ import com.google.android.gms.ads.LoadAdError
 import kotlinx.coroutines.delay
 
 @Composable
-fun BannerAd(modifier: Modifier = Modifier) {
+fun BannerAd(
+    modifier: Modifier = Modifier,
+    adKey: String = "default_banner",
+    reserveSpace: Boolean = true
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     
-    // State to track if banner is loaded
+    // State to track if banner is loaded or failed
     var isBannerLoaded by remember { mutableStateOf(false) }
+    var isBannerFailed by remember { mutableStateOf(false) }
     
     // Create a reference to the ad container
     val adContainer = remember { 
         FrameLayout(context).apply {
-            // Initially hide the container
             visibility = View.GONE
         }
     }
     
-    // Load the banner ad when the composable is first composed
-    LaunchedEffect(Unit) {
+    // Check if user is premium to avoid reserving space unnecessarily
+    val initialMonetizationManager = remember {
         try {
-            Log.d("BannerAd", "Starting banner ad initialization")
-            // Add a small delay to ensure the DynamicAdsManager is initialized
-            delay(100)
-            
+            DynamicAdsManager.getInstance().getMonetizationManager()
+        } catch (e: Exception) {
+            null
+        }
+    }
+    val isPremium = initialMonetizationManager?.isUserPremium == true
+    
+    // Target height: reserve 56.dp upfront so content above it never jumps/flings
+    val targetHeight = when {
+        isPremium -> 0.dp
+        isBannerLoaded -> 56.dp
+        isBannerFailed -> 0.dp
+        reserveSpace -> 56.dp
+        else -> 0.dp
+    }
+    val animatedHeight by animateDpAsState(
+        targetValue = targetHeight,
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        label = "BannerHeight"
+    )
+    
+    // Load the banner ad when the composable is first composed
+    LaunchedEffect(adKey) {
+        if (isPremium) {
+            isBannerFailed = true
+            return@LaunchedEffect
+        }
+        try {
+            Log.d("BannerAd", "Starting banner ad initialization for $adKey")
             val activity = context as? Activity
             if (activity != null) {
-                Log.d("BannerAd", "Activity found, attempting to load banner ad")
-                // Try to get the monetization manager with a retry mechanism
                 var attempts = 0
                 while (attempts < 5) {
-                    Log.d("BannerAd", "Attempt ${attempts + 1} to get monetization manager")
                     val monetizationManager = try {
                         DynamicAdsManager.getInstance().getMonetizationManager()
                     } catch (e: Exception) {
-                        Log.e("BannerAd", "Error getting monetization manager", e)
                         null
                     }
                     
                     if (monetizationManager != null) {
-                        Log.d("BannerAd", "Monetization manager found, loading banner ad")
+                        if (monetizationManager.isUserPremium) {
+                            isBannerFailed = true
+                            break
+                        }
                         monetizationManager.loadBannerAd(
                             activity = activity,
                             container = adContainer,
+                            adKey = adKey,
                             listener = object : BannerAdManager.BannerAdListener {
                                 override fun onAdLoaded() {
                                     Log.d("BannerAd", "Banner ad loaded successfully")
                                     isBannerLoaded = true
+                                    isBannerFailed = false
                                     adContainer.visibility = View.VISIBLE
                                 }
 
                                 override fun onAdFailedToLoad(adError: LoadAdError?) {
                                     Log.d("BannerAd", "Banner ad failed to load: ${adError?.message}")
                                     isBannerLoaded = false
+                                    isBannerFailed = true
                                     adContainer.visibility = View.GONE
                                 }
 
@@ -96,105 +130,66 @@ fun BannerAd(modifier: Modifier = Modifier) {
                                 }
                             }
                         )
-                        Log.d("BannerAd", "Banner ad load requested")
+                        Log.d("BannerAd", "Banner ad load requested for $adKey")
                         break
                     } else {
                         Log.d("BannerAd", "Monetization manager not available, retrying...")
                         attempts++
-                        delay(200)
+                        delay(150)
                     }
                 }
                 if (attempts >= 5) {
                     Log.e("BannerAd", "Failed to get monetization manager after 5 attempts")
                     isBannerLoaded = false
+                    isBannerFailed = true
                     adContainer.visibility = View.GONE
                 }
             } else {
                 Log.e("BannerAd", "Context is not an Activity")
                 isBannerLoaded = false
+                isBannerFailed = true
                 adContainer.visibility = View.GONE
             }
         } catch (e: Exception) {
             Log.e("BannerAd", "Error loading banner ad", e)
             isBannerLoaded = false
+            isBannerFailed = true
             adContainer.visibility = View.GONE
         }
     }
     
     // Handle lifecycle events
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, adKey) {
         val observer = object : DefaultLifecycleObserver {
             override fun onResume(owner: LifecycleOwner) {
-                Log.d("BannerAd", "onResume called")
                 try {
-                    val monetizationManager = try {
-                        DynamicAdsManager.getInstance().getMonetizationManager()
-                    } catch (e: Exception) {
-                        Log.e("BannerAd", "Error getting monetization manager in onResume", e)
-                        null
-                    }
-                    if (monetizationManager != null) {
-                        Log.d("BannerAd", "Resuming banner ad")
-                        monetizationManager.resumeBannerAd()
-                    } else {
-                        Log.d("BannerAd", "Monetization manager not available in onResume")
-                    }
-                } catch (e: Exception) {
-                    Log.e("BannerAd", "Error resuming banner ad", e)
-                }
+                    DynamicAdsManager.getInstance().getMonetizationManager()?.resumeBannerAd(adKey)
+                } catch (ignored: Exception) {}
             }
             
             override fun onPause(owner: LifecycleOwner) {
-                Log.d("BannerAd", "onPause called")
                 try {
-                    val monetizationManager = try {
-                        DynamicAdsManager.getInstance().getMonetizationManager()
-                    } catch (e: Exception) {
-                        Log.e("BannerAd", "Error getting monetization manager in onPause", e)
-                        null
-                    }
-                    if (monetizationManager != null) {
-                        Log.d("BannerAd", "Pausing banner ad")
-                        monetizationManager.pauseBannerAd()
-                    } else {
-                        Log.d("BannerAd", "Monetization manager not available in onPause")
-                    }
-                } catch (e: Exception) {
-                    Log.e("BannerAd", "Error pausing banner ad", e)
-                }
+                    DynamicAdsManager.getInstance().getMonetizationManager()?.pauseBannerAd(adKey)
+                } catch (ignored: Exception) {}
             }
         }
         
         lifecycleOwner.lifecycle.addObserver(observer)
         
         onDispose {
-            Log.d("BannerAd", "onDispose called")
             try {
                 lifecycleOwner.lifecycle.removeObserver(observer)
-                val monetizationManager = try {
-                    DynamicAdsManager.getInstance().getMonetizationManager()
-                } catch (e: Exception) {
-                    Log.e("BannerAd", "Error getting monetization manager in onDispose", e)
-                    null
-                }
-                if (monetizationManager != null) {
-                    Log.d("BannerAd", "Destroying banner ad")
-                    monetizationManager.destroyBannerAd()
-                } else {
-                    Log.d("BannerAd", "Monetization manager not available in onDispose")
-                }
-            } catch (e: Exception) {
-                Log.e("BannerAd", "Error destroying banner ad", e)
-            }
+                DynamicAdsManager.getInstance().getMonetizationManager()?.destroyBannerAd(adKey)
+            } catch (ignored: Exception) {}
         }
     }
     
-    // Create the banner ad container
+    // Create the banner ad container with fixed/animated height to prevent layout shift
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(if (isBannerLoaded) 60.dp else 0.dp)
-            .padding(bottom = if (isBannerLoaded) 10.dp else 0.dp), // 10dp padding from bottom to avoid user click confusion
+            .height(animatedHeight)
+            .padding(bottom = if (animatedHeight > 0.dp) 4.dp else 0.dp),
         contentAlignment = Alignment.Center
     ) {
         AndroidView(

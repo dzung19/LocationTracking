@@ -26,11 +26,16 @@ class LocationViewModel(
 
     val allSessions: Flow<List<RunSession>> = runDao.getAllRunSessions()
 
-    val userPreferences: StateFlow<UserPreferences?> = userPreferencesRepository.userPreferencesFlow
+    val userPreferences: StateFlow<UserPreferences> = userPreferencesRepository.userPreferencesFlow
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,
-            initialValue = null
+            initialValue = UserPreferences(
+                latitude = UserPreferencesRepository.DEFAULT_LATITUDE,
+                longitude = UserPreferencesRepository.DEFAULT_LONGITUDE,
+                weight = UserPreferencesRepository.DEFAULT_WEIGHT,
+                hasSavedLocation = false
+            )
         )
 
     fun saveLocation(lat: Double, lon: Double) {
