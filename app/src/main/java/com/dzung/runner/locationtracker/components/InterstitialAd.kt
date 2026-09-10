@@ -1,4 +1,4 @@
-package com.dzungphung.aimodel.econimical.smartspend.ui.components
+package com.dzung.runner.locationtracker.components
 
 import android.app.Activity
 import android.util.Log
