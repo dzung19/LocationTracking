@@ -18,6 +18,8 @@ data class AdConfigSet(
     val bannerAdId: String = "",
     @SerializedName("interstitialAdId")
     val interstitialAdId: String = "",
+    @SerializedName("rewardedAdId")
+    val rewardedAdId: String = "",
     @SerializedName("removeAdsSku")
     val removeAdsSku: String = "remove_ads_sku",
     @SerializedName("priority")

@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import java.io.IOException
 import kotlinx.coroutines.flow.Flow
@@ -33,6 +34,7 @@ class UserPreferencesRepository(private val context: Context) {
         val KEY_LONGITUDE = doublePreferencesKey("last_lon")
         val KEY_WEIGHT = floatPreferencesKey("user_weight")
         val KEY_MARKER_ICON = stringPreferencesKey("marker_icon")
+        val KEY_RESTORED_STREAK_DATES = stringSetPreferencesKey("restored_streak_dates")
 
         const val DEFAULT_LATITUDE = 10.762622
         const val DEFAULT_LONGITUDE = 106.660172
@@ -89,6 +91,30 @@ class UserPreferencesRepository(private val context: Context) {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error saving marker icon to DataStore", e)
+        }
+    }
+
+    val restoredStreakDatesFlow: Flow<Set<String>> = context.locationDataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                Log.e(TAG, "Error reading restored streak dates from DataStore", exception)
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { prefs ->
+            prefs[KEY_RESTORED_STREAK_DATES] ?: emptySet()
+        }
+
+    suspend fun restoreStreakDate(dateStr: String) {
+        try {
+            context.locationDataStore.edit { prefs ->
+                val current = prefs[KEY_RESTORED_STREAK_DATES] ?: emptySet()
+                prefs[KEY_RESTORED_STREAK_DATES] = current + dateStr
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving restored streak date to DataStore", e)
         }
     }
 }

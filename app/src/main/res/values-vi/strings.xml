@@ -9,6 +9,7 @@
     <!-- Main Screen -->
     <string name="body_weight_title">Trọng lượng cơ thể (kg)</string>
     <string name="weight_label">Trọng lượng tính bằng kg</string>
+    <string name="weight_helper_text">Chỉ dùng trên thiết bị để tính lượng calo tiêu hao chính xác. Không chia sẻ hoặc tải lên mạng.</string>
     <string name="recenter_map">Căn giữa bản đồ</string>
     <string name="loc_permission_req">Yêu cầu quyền vị trí</string>
     <string name="loc_permission_desc">Vui lòng cấp quyền vị trí để theo dõi hoạt động của bạn và xem vị trí hiện tại.</string>
@@ -113,4 +114,22 @@
     <string name="share_app_title">Chia sẻ Location Tracker qua</string>
     <string name="collapse_tracker">Thu gọn bảng theo dõi</string>
     <string name="expand_tracker">Mở rộng bảng theo dõi</string>
+
+    <!-- Empty Activity Dialog & Deletion -->
+    <string name="empty_activity_title">Hoạt động trống</string>
+    <string name="empty_activity_message">Bạn chưa di chuyển trong hoạt động này (0.00 km). Bạn muốn hủy hay lưu hoạt động này?</string>
+    <string name="discard">Hủy bỏ</string>
+    <string name="save">Lưu</string>
+    <string name="delete_activity">Xóa hoạt động</string>
+    <string name="delete_activity_confirm">Bạn có chắc chắn muốn xóa vĩnh viễn hoạt động này không?</string>
+    <string name="stationary_activity">Hoạt động tại chỗ (0 km)</string>
+
+    <!-- Streak Restoration -->
+    <string name="restore_streak_title">Khôi phục chuỗi</string>
+    <string name="restore_streak_desc">Xem một đoạn quảng cáo ngắn để khôi phục chuỗi %d ngày của bạn!</string>
+    <string name="restore_streak_button">Khôi phục chuỗi</string>
+    <string name="streak_lost_banner">Chuỗi bị gián đoạn (mất %d ngày)</string>
+    <string name="streak_restored_success">Đã khôi phục chuỗi! 🔥 %d ngày</string>
+    <string name="premium_streak_restored">Đã khôi phục chuỗi tức thì (Đặc quyền Premium)!</string>
+    <string name="ad_not_ready">Quảng cáo chưa sẵn sàng. Vui lòng thử lại sau vài giây.</string>
 </resources>

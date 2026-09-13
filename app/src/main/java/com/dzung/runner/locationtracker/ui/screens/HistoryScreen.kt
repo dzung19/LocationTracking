@@ -1,5 +1,8 @@
 package com.dzung.runner.locationtracker.ui.screens
 
+import android.app.Activity
+import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,13 +16,18 @@ import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
+import com.daumo.ads.DynamicAdsManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -55,8 +63,20 @@ fun HistoryScreen(
 
     val totalXP by viewModel.totalXP.collectAsStateWithLifecycle()
     val currentStreak by viewModel.currentStreak.collectAsStateWithLifecycle()
+    val restoreStreakInfo by viewModel.restoreStreakInfo.collectAsStateWithLifecycle()
+
+    val context = LocalContext.current
+    val activity = context as? Activity
+    val monetizationManager = remember {
+        try { DynamicAdsManager.getInstance().getMonetizationManager() } catch (e: Exception) { null }
+    }
+
+    LaunchedEffect(Unit) {
+        monetizationManager?.loadRewardedAd(context)
+    }
 
     var showDatePicker by remember { mutableStateOf(false) }
+    var showRestoreStreakDialog by remember { mutableStateOf(false) }
 
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState()
@@ -80,6 +100,75 @@ fun HistoryScreen(
         ) {
             DatePicker(state = datePickerState)
         }
+    }
+
+    if (showRestoreStreakDialog) {
+        val potential = restoreStreakInfo.potentialStreak
+        AlertDialog(
+            onDismissRequest = { showRestoreStreakDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.LocalFireDepartment,
+                    contentDescription = null,
+                    tint = Color(0xFFFF9800),
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = stringResource(R.string.restore_streak_title),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(R.string.restore_streak_desc, potential),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showRestoreStreakDialog = false
+                        val currentActivity = activity
+                        if (monetizationManager?.isUserPremium == true) {
+                            viewModel.restoreStreak()
+                            Toast.makeText(context, context.getString(R.string.premium_streak_restored), Toast.LENGTH_SHORT).show()
+                        } else if (currentActivity != null) {
+                            if (monetizationManager?.isRewardedAdLoaded() == true) {
+                                monetizationManager.showRewardedAd(
+                                    activity = currentActivity,
+                                    onUserEarnedReward = {
+                                        viewModel.restoreStreak()
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.streak_restored_success, potential),
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    },
+                                    onAdClosedOrFailed = { rewardEarned ->
+                                        if (!rewardEarned) {
+                                            // User closed early without completing ad
+                                        }
+                                    }
+                                )
+                            } else {
+                                monetizationManager?.loadRewardedAd(currentActivity)
+                                Toast.makeText(context, context.getString(R.string.ad_not_ready), Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800))
+                ) {
+                    Text(stringResource(R.string.restore_streak_button), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestoreStreakDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -161,7 +250,10 @@ fun HistoryScreen(
                 item {
                     OrangeTreeDashboard(
                         totalXP = totalXP,
-                        currentStreak = currentStreak
+                        currentStreak = currentStreak,
+                        canRestoreStreak = restoreStreakInfo.canRestore,
+                        potentialStreak = restoreStreakInfo.potentialStreak,
+                        onRestoreStreakClick = { showRestoreStreakDialog = true }
                     )
                 }
 
@@ -390,7 +482,11 @@ fun HistoryCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = stringResource(R.string.no_route_data),
+                            text = if (session.totalDistanceMeters <= 0f) {
+                                stringResource(R.string.stationary_activity)
+                            } else {
+                                stringResource(R.string.no_route_data)
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
@@ -492,7 +588,24 @@ fun RouteCanvasPreview(
     val primaryColor = MaterialTheme.colorScheme.primary
 
     Canvas(modifier = modifier) {
-        if (points.size < 2) return@Canvas
+        if (points.isEmpty()) return@Canvas
+
+        if (points.size == 1) {
+            val center = Offset(size.width / 2f, size.height / 2f)
+            // Outer halo / pulse
+            drawCircle(
+                color = primaryColor.copy(alpha = 0.25f),
+                radius = 18f,
+                center = center
+            )
+            // Main coordinate pin dot
+            drawCircle(
+                color = primaryColor,
+                radius = 8f,
+                center = center
+            )
+            return@Canvas
+        }
 
         val minLat = points.minOf { it.latitude }
         val maxLat = points.maxOf { it.latitude }
@@ -549,6 +662,9 @@ fun RouteCanvasPreview(
 fun OrangeTreeDashboard(
     totalXP: Int,
     currentStreak: Int,
+    canRestoreStreak: Boolean = false,
+    potentialStreak: Int = 0,
+    onRestoreStreakClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     // Determine level based on XP
@@ -617,7 +733,7 @@ fun OrangeTreeDashboard(
             ) {
                 OrangeTreeCanvas(
                     level = level,
-                    streak = currentStreak,
+                    streak = if (canRestoreStreak) potentialStreak else currentStreak,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -627,11 +743,48 @@ fun OrangeTreeDashboard(
             // Right side: Statistics and progress bar
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (currentStreak > 0) stringResource(R.string.streak_day_streak, currentStreak) else stringResource(R.string.no_active_streak),
+                    text = if (canRestoreStreak) {
+                        stringResource(R.string.streak_lost_banner, potentialStreak)
+                    } else if (currentStreak > 0) {
+                        stringResource(R.string.streak_day_streak, currentStreak)
+                    } else {
+                        stringResource(R.string.no_active_streak)
+                    },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (currentStreak > 0) Color(0xFFFF9800) else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (canRestoreStreak) MaterialTheme.colorScheme.error else if (currentStreak > 0) Color(0xFFFF9800) else MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                if (canRestoreStreak) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Surface(
+                        onClick = onRestoreStreakClick,
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFFFF9800).copy(alpha = 0.15f),
+                        border = BorderStroke(1.dp, Color(0xFFFF9800).copy(alpha = 0.5f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                tint = Color(0xFFFF9800),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.restore_streak_button),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFF9800)
+                            )
+                        }
+                    }
+                }
                 
                 Spacer(modifier = Modifier.height(4.dp))
 

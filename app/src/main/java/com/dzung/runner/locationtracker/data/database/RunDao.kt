@@ -36,4 +36,7 @@ interface RunDao {
         WHERE startTimeInMillis >= :fromTimeMillis AND startTimeInMillis <= :toTimeMillis
     """)
     fun getStatsInRange(fromTimeMillis: Long, toTimeMillis: Long): Flow<RunStats?>
+
+    @Query("DELETE FROM run_sessions WHERE id = :sessionId")
+    suspend fun deleteRunSession(sessionId: Long)
 }

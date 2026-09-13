@@ -1,25 +1,22 @@
 package com.dzung.runner.locationtracker
 
 import android.app.Application
-import android.os.Build
 import android.util.Log
-import androidx.annotation.RequiresApi
 import com.daumo.ads.DynamicAdsManager
 import com.dzung.runner.locationtracker.di.appModule
-import org.koin.android.ext.koin.androidContext
-import org.koin.core.context.startKoin
-
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.koin.android.ext.koin.androidContext
+import org.koin.core.context.startKoin
 
 class LocationTrackingApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
         try {
-            FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(true)
+            FirebaseCrashlytics.getInstance().isCrashlyticsCollectionEnabled = true
         } catch (e: Exception) {
             Log.e("LocationTrackingApp", "Error enabling Firebase Crashlytics", e)
         }

@@ -11,6 +11,7 @@
     <!-- Main Screen -->
     <string name="body_weight_title">Body Weight (kg)</string>
     <string name="weight_label">Weight in kg</string>
+    <string name="weight_helper_text">Used only on your device to calculate accurate calories burned. Never shared or uploaded.</string>
     <string name="map_marker_title">Map Marker Icon</string>
     <string name="marker_default">Runner</string>
     <string name="marker_orange">Citrus</string>
@@ -122,4 +123,22 @@
     <string name="share_app_title">Share Location Tracker via</string>
     <string name="collapse_tracker">Collapse Tracker</string>
     <string name="expand_tracker">Expand Tracker</string>
+
+    <!-- Empty Activity Dialog & Deletion -->
+    <string name="empty_activity_title">Empty Activity</string>
+    <string name="empty_activity_message">You haven\'t moved during this activity (0.00 km). Would you like to discard or save it?</string>
+    <string name="discard">Discard</string>
+    <string name="save">Save</string>
+    <string name="delete_activity">Delete Activity</string>
+    <string name="delete_activity_confirm">Are you sure you want to permanently delete this activity?</string>
+    <string name="stationary_activity">Stationary Activity (0 km)</string>
+
+    <!-- Streak Restoration -->
+    <string name="restore_streak_title">Restore Streak</string>
+    <string name="restore_streak_desc">Watch a short ad to repair your %d-day streak!</string>
+    <string name="restore_streak_button">Restore Streak</string>
+    <string name="streak_lost_banner">Streak broken (%d days lost)</string>
+    <string name="streak_restored_success">Streak restored! 🔥 %d days</string>
+    <string name="premium_streak_restored">Streak restored instantly (Premium perk)!</string>
+    <string name="ad_not_ready">Ad is not ready yet. Please try again in a moment.</string>
 </resources>

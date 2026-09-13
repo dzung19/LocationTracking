@@ -62,5 +62,5 @@ val appModule = module {
     viewModel { LocationViewModel(get(), get(), get()) }
     
     // Provide HistoryViewModel
-    viewModel { HistoryViewModel(get()) }
+    viewModel { HistoryViewModel(get(), get()) }
 }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import android.content.Intent
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.DirectionsWalk
@@ -48,6 +49,8 @@ fun RunDetailScreen(
         runSessions.find { it.id == sessionId }
     }
 
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
     // Trigger loading of points for this session
     LaunchedEffect(sessionId) {
         viewModel.loadPointsForSession(sessionId)
@@ -62,7 +65,7 @@ fun RunDetailScreen(
 
     // Fit route in bounds when loaded
     LaunchedEffect(pathPoints) {
-        if (pathPoints.isNotEmpty()) {
+        if (pathPoints.size >= 2) {
             try {
                 val builder = LatLngBounds.builder()
                 pathPoints.forEach { builder.include(it) }
@@ -76,7 +79,56 @@ fun RunDetailScreen(
                     cameraPositionState.position = CameraPosition.fromLatLngZoom(pathPoints[0], 16f)
                 }
             }
+        } else if (pathPoints.size == 1) {
+            cameraPositionState.animate(
+                update = CameraUpdateFactory.newLatLngZoom(pathPoints[0], 16f)
+            )
         }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = {
+                Text(
+                    text = stringResource(R.string.delete_activity),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(R.string.delete_activity_confirm),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteDialog = false
+                        viewModel.deleteSession(sessionId)
+                        onBackClick()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
+                ) {
+                    Text(stringResource(R.string.delete_activity))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -109,6 +161,13 @@ fun RunDetailScreen(
                             .padding(start = 8.dp)
                     )
                     session?.let { currentSession ->
+                        IconButton(onClick = { showDeleteDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = stringResource(R.string.delete_activity),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                         IconButton(onClick = {
                             val distKm = currentSession.totalDistanceMeters / 1000f
                             val text = "I completed a %.2f km %s with Location Tracker! Check it out: https://play.google.com/store/apps/details?id=%s"
@@ -169,14 +228,14 @@ fun RunDetailScreen(
                             myLocationButtonEnabled = false
                         )
                     ) {
-                        if (pathPoints.isNotEmpty()) {
+                        if (pathPoints.size >= 2) {
                             Polyline(
                                 points = pathPoints,
                                 color = MaterialTheme.colorScheme.primary,
                                 width = 12f
                             )
                             MarkerComposable(
-                                state = rememberMarkerState(position = pathPoints.first()),
+                                state = rememberUpdatedMarkerState(position = pathPoints.first()),
                                 anchor = Offset(0.5f, 0.5f)
                             ) {
                                 Surface(
@@ -195,7 +254,7 @@ fun RunDetailScreen(
                                 }
                             }
                             MarkerComposable(
-                                state = rememberMarkerState(position = pathPoints.last()),
+                                state = rememberUpdatedMarkerState(position = pathPoints.last()),
                                 anchor = Offset(0.5f, 0.5f)
                             ) {
                                 Surface(
@@ -212,6 +271,53 @@ fun RunDetailScreen(
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
                                 }
+                            }
+                        } else if (pathPoints.size == 1) {
+                            MarkerComposable(
+                                state = rememberUpdatedMarkerState(position = pathPoints.first()),
+                                anchor = Offset(0.5f, 0.5f)
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    contentColor = Color.White,
+                                    tonalElevation = 4.dp,
+                                    shadowElevation = 4.dp
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.start_point),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (pathPoints.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                                tonalElevation = 4.dp,
+                                modifier = Modifier.padding(24.dp)
+                            ) {
+                                Text(
+                                    text = if (session.totalDistanceMeters <= 0f) {
+                                        stringResource(R.string.stationary_activity)
+                                    } else {
+                                        stringResource(R.string.no_route_data)
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                                )
                             }
                         }
                     }

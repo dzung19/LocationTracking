@@ -1,87 +1,128 @@
 package com.dzung.runner.locationtracker.ui.screens
 
-import android.Manifest
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MonitorWeight
-import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.DirectionsWalk
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.Terrain
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Terrain
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dzung.runner.locationtracker.LocationTrackingState
+import com.dzung.runner.locationtracker.LocationViewModel
+import com.dzung.runner.locationtracker.R
+import com.dzung.runner.locationtracker.data.database.ActivityType
+import com.dzung.runner.locationtracker.data.model.WeatherState
+import com.dzung.runner.locationtracker.data.repository.UserPreferences
 import com.dzung.runner.locationtracker.ui.components.CollapsedMiniHud
 import com.dzung.runner.locationtracker.ui.components.GhostDuelCard
 import com.dzung.runner.locationtracker.ui.components.HeroStatDisplay
 import com.dzung.runner.locationtracker.ui.components.MetricTile
 import com.dzung.runner.locationtracker.ui.components.PulsingLiveDot
 import com.dzung.runner.locationtracker.ui.components.SegmentedActivitySwitch
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import com.dzung.runner.locationtracker.data.model.WeatherState
-import androidx.compose.ui.res.stringResource
-import com.dzung.runner.locationtracker.R
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.dzung.runner.locationtracker.LocationTrackingState
-import com.dzung.runner.locationtracker.LocationViewModel
-import com.dzung.runner.locationtracker.data.database.ActivityType
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.*
-import com.dzung.runner.locationtracker.data.repository.UserPreferences
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.MarkerComposable
+import com.google.maps.android.compose.Polyline
+import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.maps.android.compose.rememberUpdatedMarkerState
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun MainTrackerScreen(
@@ -95,8 +136,10 @@ fun MainTrackerScreen(
 ) {
     val context = LocalContext.current
     val userWeight = userPreferences.weight
+    var selectedMarkerIcon by remember(userPreferences.markerIcon) { mutableStateOf(userPreferences.markerIcon) }
     var showWeightDialog by remember { mutableStateOf(false) }
     var showGhostDialog by remember { mutableStateOf(false) }
+    var showEmptyStopDialog by remember { mutableStateOf(false) }
     val allSessions by viewModel.allSessions.collectAsStateWithLifecycle(emptyList())
     val coroutineScope = rememberCoroutineScope()
 
@@ -118,7 +161,6 @@ fun MainTrackerScreen(
     
     if (showWeightDialog) {
         var weightInput by remember(userWeight) { mutableStateOf(userWeight.toString()) }
-        val currentMarkerIcon = userPreferences.markerIcon
         val markerOptions = listOf(
             Triple("DEFAULT", stringResource(R.string.marker_default), "🏃"),
             Triple("ORANGE", stringResource(R.string.marker_orange), "🍊"),
@@ -156,11 +198,14 @@ fun MainTrackerScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     rowItems.forEach { (key, name, emoji) ->
-                                        val isSelected = currentMarkerIcon == key
+                                        val isSelected = selectedMarkerIcon == key
                                         Surface(
                                             modifier = Modifier
                                                 .weight(1f)
-                                                .clickable { viewModel.saveMarkerIcon(key) },
+                                                .clickable {
+                                                    selectedMarkerIcon = key
+                                                    viewModel.saveMarkerIcon(key)
+                                                },
                                             shape = RoundedCornerShape(12.dp),
                                             color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                             border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
@@ -201,6 +246,13 @@ fun MainTrackerScreen(
                             onValueChange = { weightInput = it },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             label = { Text(stringResource(R.string.weight_label)) },
+                            supportingText = {
+                                Text(
+                                    text = stringResource(R.string.weight_helper_text),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
                         )
@@ -332,6 +384,57 @@ fun MainTrackerScreen(
         )
     }
 
+    if (showEmptyStopDialog) {
+        AlertDialog(
+            onDismissRequest = { showEmptyStopDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = {
+                Text(
+                    text = stringResource(R.string.empty_activity_title),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(R.string.empty_activity_message),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showEmptyStopDialog = false
+                        viewModel.stopTracking()
+                        isTrackerExpanded = true
+                    }
+                ) {
+                    Text(stringResource(R.string.save))
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        showEmptyStopDialog = false
+                        viewModel.discardTracking()
+                        isTrackerExpanded = true
+                    },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+                ) {
+                    Text(stringResource(R.string.discard))
+                }
+            }
+        )
+    }
+
     val defaultLocation = LatLng(userPreferences.latitude, userPreferences.longitude)
     
     val cameraPositionState = rememberCameraPositionState {
@@ -432,8 +535,11 @@ fun MainTrackerScreen(
                     "%d:%02d".format(mins, secs)
                 } ?: "-:--"
 
+                val userMarkerState = rememberUpdatedMarkerState(position = latLng)
+
                 MarkerComposable(
-                    state = rememberMarkerState(position = latLng),
+                    keys = arrayOf(selectedMarkerIcon, paceStr, state.activityType.name),
+                    state = userMarkerState,
                     anchor = Offset(0.5f, 0.9f)
                 ) {
                     Column(
@@ -463,7 +569,7 @@ fun MainTrackerScreen(
                             shape = CircleShape,
                             color = MaterialTheme.colorScheme.surface,
                             contentColor = MaterialTheme.colorScheme.primary,
-                            border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
+                            border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
                             tonalElevation = 4.dp,
                             shadowElevation = 4.dp,
                             modifier = Modifier.size(36.dp)
@@ -472,7 +578,7 @@ fun MainTrackerScreen(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier.fillMaxSize()
                             ) {
-                                when (userPreferences.markerIcon) {
+                                when (selectedMarkerIcon) {
                                     "ORANGE" -> Text("🍊", fontSize = 18.sp)
                                     "SNEAKER" -> Text("👟", fontSize = 18.sp)
                                     "FIRE" -> Text("🔥", fontSize = 18.sp)
@@ -481,9 +587,9 @@ fun MainTrackerScreen(
                                     else -> {
                                         Icon(
                                             imageVector = if (state.activityType == ActivityType.RUNNING) {
-                                                Icons.Default.DirectionsRun
+                                                Icons.AutoMirrored.Filled.DirectionsRun
                                             } else {
-                                                Icons.Default.DirectionsWalk
+                                                Icons.AutoMirrored.Filled.DirectionsWalk
                                             },
                                             contentDescription = null,
                                             modifier = Modifier.size(24.dp)
@@ -529,10 +635,11 @@ fun MainTrackerScreen(
 
             // Draw ghost runner marker if active and coordinates exist
             if (state.isTracking && state.ghostLatitude != null && state.ghostLongitude != null) {
+                val ghostLatLng = LatLng(state.ghostLatitude, state.ghostLongitude)
+                val ghostMarkerState = rememberUpdatedMarkerState(position = ghostLatLng)
                 MarkerComposable(
-                    state = rememberMarkerState(
-                        position = LatLng(state.ghostLatitude, state.ghostLongitude)
-                    ),
+                    keys = arrayOf("GHOST_RUNNER"),
+                    state = ghostMarkerState,
                     anchor = Offset(0.5f, 0.5f)
                 ) {
                     Surface(
@@ -909,7 +1016,7 @@ fun MainTrackerScreen(
                                             .fillMaxWidth()
                                             .height(42.dp)
                                     ) {
-                                        Icon(Icons.Default.DirectionsRun, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Icon(Icons.AutoMirrored.Filled.DirectionsRun, contentDescription = null, modifier = Modifier.size(18.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(stringResource(R.string.select_ghost), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                                     }
@@ -963,8 +1070,12 @@ fun MainTrackerScreen(
                             } else {
                                 Button(
                                     onClick = {
-                                        viewModel.stopTracking()
-                                        isTrackerExpanded = true
+                                        if (state.distanceMeters <= 0f) {
+                                            showEmptyStopDialog = true
+                                        } else {
+                                            viewModel.stopTracking()
+                                            isTrackerExpanded = true
+                                        }
                                     },
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.error,
@@ -1191,14 +1302,14 @@ private fun shareApp(context: Context) {
  */
 private fun rateApp(context: Context) {
     val packageName = context.packageName
-    val marketUri = Uri.parse("market://details?id=$packageName")
+    val marketUri = "market://details?id=$packageName".toUri()
     val goToMarket = Intent(Intent.ACTION_VIEW, marketUri).apply {
         addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY or Intent.FLAG_ACTIVITY_NEW_DOCUMENT or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
     }
     try {
         context.startActivity(goToMarket)
     } catch (e: ActivityNotFoundException) {
-        val webUri = Uri.parse("https://play.google.com/store/apps/details?id=$packageName")
+        val webUri = "https://play.google.com/store/apps/details?id=$packageName".toUri()
         context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
     }
 }

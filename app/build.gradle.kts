@@ -23,8 +23,8 @@ android {
     applicationId = "com.dzung.runner.locationtracker"
     minSdk = 28
     targetSdk = 37
-    versionCode = 5
-    versionName = "1.3"
+    versionCode = 6
+    versionName = "1.4"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "dummy_key"
@@ -61,6 +61,7 @@ android {
       buildConfigField("String", "APP_OPEN_AD_ID", "\"${localProperties.getProperty("APP_OPEN_AD_ID")}\"")
       buildConfigField("String", "BANNER_AD_ID", "\"${localProperties.getProperty("BANNER_AD_ID")}\"")
       buildConfigField("String", "INTERSTITIAL_AD_ID", "\"${localProperties.getProperty("INTERSTITIAL_AD_ID")}\"")
+      buildConfigField("String", "REWARDED_AD_ID", "\"${localProperties.getProperty("REWARDED_AD_ID") ?: ""}\"")
       buildConfigField("String", "REMOVE_ADS_SKU", "\"remove_ads_sku\"")
       buildConfigField("Boolean", "ADS_DISABLED", "false")
       manifestPlaceholders["caAppPubId"] = "ca-app-pub-9439921169677011~6105322422"
@@ -72,6 +73,7 @@ android {
       buildConfigField("String", "APP_OPEN_AD_ID", "\"ca-app-pub-3940256099942544/9257395921\"")
       buildConfigField("String", "BANNER_AD_ID", "\"ca-app-pub-3940256099942544/6300978111\"")
       buildConfigField("String", "INTERSTITIAL_AD_ID", "\"ca-app-pub-3940256099942544/1033173712\"")
+      buildConfigField("String", "REWARDED_AD_ID", "\"ca-app-pub-3940256099942544/5224354917\"")
       buildConfigField("String", "REMOVE_ADS_SKU", "\"android.test.purchased\"")
       buildConfigField("Boolean", "ADS_DISABLED", "false")
       manifestPlaceholders["caAppPubId"] = "ca-app-pub-3940256099942544~3347511713"

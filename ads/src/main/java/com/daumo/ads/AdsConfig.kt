@@ -7,5 +7,6 @@ data class AdsConfig(
     val appOpenAdUnitId: String?,
     val defaultBannerAdUnitId: String,
     val defaultInterstitialAdUnitId: String,
+    val defaultRewardedAdUnitId: String? = null,
     val removeAdsSku: String
 )

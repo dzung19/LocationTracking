@@ -127,6 +127,13 @@ class LocationViewModel(
     }
 
     /**
+     * Delegates the discard tracking command to the active service, deleting the empty session.
+     */
+    fun discardTracking() {
+        activeService?.discardLocationUpdates()
+    }
+
+    /**
      * Delegates setting the activity type to the active service.
      */
     fun setActivityType(type: com.dzung.runner.locationtracker.data.database.ActivityType) {

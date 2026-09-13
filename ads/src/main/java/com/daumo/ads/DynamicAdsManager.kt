@@ -86,6 +86,7 @@ class DynamicAdsManager private constructor(
             val appOpen = buildConfigClass.getField("APP_OPEN_AD_ID").get(null) as? String
             val banner = buildConfigClass.getField("BANNER_AD_ID").get(null) as? String
             val interstitial = buildConfigClass.getField("INTERSTITIAL_AD_ID").get(null) as? String
+            val rewarded = try { buildConfigClass.getField("REWARDED_AD_ID").get(null) as? String } catch (e: Exception) { null }
             val sku = (buildConfigClass.getField("REMOVE_ADS_SKU").get(null) as? String) ?: "remove_ads_sku"
 
             if (!banner.isNullOrBlank() && !interstitial.isNullOrBlank()) {
@@ -93,6 +94,7 @@ class DynamicAdsManager private constructor(
                     appOpenAdId = appOpen ?: "",
                     bannerAdId = banner,
                     interstitialAdId = interstitial,
+                    rewardedAdId = rewarded ?: "",
                     removeAdsSku = sku,
                     priority = 999,
                     isActive = true
@@ -130,6 +132,7 @@ class DynamicAdsManager private constructor(
                         appOpenAdUnitId = "ca-app-pub-3940256099942544/9257395921", // Test App Open Ad ID
                         defaultBannerAdUnitId = "ca-app-pub-3940256099942544/6300978111", // Test Banner Ad ID
                         defaultInterstitialAdUnitId = "ca-app-pub-3940256099942544/1033173712", // Test Interstitial Ad ID
+                        defaultRewardedAdUnitId = "ca-app-pub-3940256099942544/5224354917", // Test Rewarded Ad ID
                         removeAdsSku = "android.test.purchased" // Test SKU
                     )
 
@@ -168,6 +171,7 @@ class DynamicAdsManager private constructor(
                             appOpenAdUnitId = bestConfig.appOpenAdId,
                             defaultBannerAdUnitId = bestConfig.bannerAdId,
                             defaultInterstitialAdUnitId = bestConfig.interstitialAdId,
+                            defaultRewardedAdUnitId = bestConfig.rewardedAdId.takeIf { it.isNotBlank() },
                             removeAdsSku = bestConfig.removeAdsSku
                         )
 

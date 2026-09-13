@@ -61,6 +61,7 @@ class LocationTrackingService : Service(), SensorEventListener {
         private const val TAG = "LocationTrackingService"
         const val ACTION_START_TRACKING = "com.dzung.runner.locationtracker.ACTION_START_TRACKING"
         const val ACTION_STOP_TRACKING = "com.dzung.runner.locationtracker.ACTION_STOP_TRACKING"
+        const val ACTION_DISCARD_TRACKING = "com.dzung.runner.locationtracker.ACTION_DISCARD_TRACKING"
     }
 
     private val binder = LocalBinder()
@@ -146,6 +147,7 @@ class LocationTrackingService : Service(), SensorEventListener {
         when (intent?.action) {
             ACTION_START_TRACKING -> startLocationUpdates()
             ACTION_STOP_TRACKING -> stopLocationUpdates()
+            ACTION_DISCARD_TRACKING -> discardLocationUpdates()
         }
         return START_STICKY
     }
@@ -217,6 +219,23 @@ class LocationTrackingService : Service(), SensorEventListener {
                                 pathPoints = if (currentState.pathPoints.isEmpty()) listOf(latLng) else currentState.pathPoints,
                                 errorMessage = null
                             )
+                        }
+
+                        // Persist initial point so even stationary workouts have a recorded starting location
+                        currentSessionId?.let { sid ->
+                            serviceScope.launch {
+                                try {
+                                    val point = LocationPoint(
+                                        sessionId = sid,
+                                        latitude = location.latitude,
+                                        longitude = location.longitude,
+                                        timestamp = location.time
+                                    )
+                                    runDao.insertLocationPoint(point)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error inserting initial location point", e)
+                                }
+                            }
                         }
                         return
                     }
@@ -485,7 +504,23 @@ class LocationTrackingService : Service(), SensorEventListener {
                         startTimeInMillis = startTimeMillis,
                         activityType = currentActivityType
                     )
-                    currentSessionId = runDao.insertRunSession(session)
+                    val insertedId = runDao.insertRunSession(session)
+                    currentSessionId = insertedId
+
+                    // If initial fix was already obtained before session ID ready, persist starting point
+                    previousLocation?.let { initLoc ->
+                        try {
+                            val point = LocationPoint(
+                                sessionId = insertedId,
+                                latitude = initLoc.latitude,
+                                longitude = initLoc.longitude,
+                                timestamp = initLoc.time
+                            )
+                            runDao.insertLocationPoint(point)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error persisting initial location point for new session", e)
+                        }
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "Database error inserting run session", e)
                 }
@@ -634,6 +669,61 @@ class LocationTrackingService : Service(), SensorEventListener {
                         isTracking = false,
                         elapsedTimeSeconds = finalElapsedSeconds,
                         errorMessage = "Tracking stopped by user"
+                    )
+                }
+                stopSelf()
+            }
+        }
+    }
+
+    /**
+     * Immediately stops tracking and permanently deletes the empty/discarded session from Room DB.
+     */
+    fun discardLocationUpdates() {
+        if (!_trackingState.value.isTracking) return
+
+        try {
+            fusedLocationClient.removeLocationUpdates(locationCallback)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error removing location updates", e)
+        }
+        try {
+            sensorManager.unregisterListener(this)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error unregistering sensor listener", e)
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping foreground status", e)
+        }
+
+        timerJob?.cancel()
+
+        serviceScope.launch {
+            try {
+                currentSessionId?.let { sid ->
+                    runDao.deleteRunSession(sid)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Database error discarding run session", e)
+            } finally {
+                currentSessionId = null
+            }
+
+            withContext(Dispatchers.Main) {
+                _trackingState.update {
+                    it.copy(
+                        isTracking = false,
+                        elapsedTimeSeconds = 0L,
+                        distanceMeters = 0f,
+                        pathPoints = emptyList(),
+                        errorMessage = "Tracking discarded by user"
                     )
                 }
                 stopSelf()

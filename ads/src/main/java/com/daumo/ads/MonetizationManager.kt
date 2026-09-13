@@ -26,6 +26,7 @@ class MonetizationManager private constructor(
     private val bannerAdManagers =
         mutableMapOf<String, BannerAdManager>()
     private val interstitialAdManagers = mutableMapOf<String, InterstitialAdManager>()
+    private var rewardedAdManager: RewardedAdManager? = null
 
     private lateinit var billingManager: BillingManager
 
@@ -65,6 +66,14 @@ class MonetizationManager private constructor(
         // Preload App Open Ad if ad unit ID exists
         if (!config.appOpenAdUnitId.isNullOrBlank() && !_isUserPremium) {
             appOpenAdManager?.loadAd()
+        }
+
+        val rewardedAdUnitId = config.defaultRewardedAdUnitId
+        if (!rewardedAdUnitId.isNullOrBlank()) {
+            rewardedAdManager = RewardedAdManager(application, rewardedAdUnitId)
+            if (!_isUserPremium) {
+                rewardedAdManager?.loadAd()
+            }
         }
 
         billingManager = BillingManager(
@@ -247,6 +256,45 @@ class MonetizationManager private constructor(
         billingManager.launchPurchaseFlow(activity)
     }
 
+    fun loadRewardedAd(context: Context) {
+        if (isUserPremium) return
+        val rewardedAdUnitId = config.defaultRewardedAdUnitId
+        if (rewardedAdManager == null && !rewardedAdUnitId.isNullOrBlank()) {
+            rewardedAdManager = RewardedAdManager(context.applicationContext, rewardedAdUnitId)
+        }
+        rewardedAdManager?.loadAd()
+    }
+
+    fun isRewardedAdLoaded(): Boolean {
+        return if (isUserPremium) false else rewardedAdManager?.isAdLoaded ?: false
+    }
+
+    fun showRewardedAd(
+        activity: Activity,
+        onUserEarnedReward: () -> Unit,
+        onAdClosedOrFailed: (rewardEarned: Boolean) -> Unit
+    ) {
+        if (isUserPremium) {
+            onUserEarnedReward()
+            onAdClosedOrFailed(true)
+            return
+        }
+
+        val manager = rewardedAdManager
+        if (manager != null && manager.isAdLoaded) {
+            manager.showAd(
+                activity = activity,
+                onUserEarnedReward = onUserEarnedReward,
+                specificListener = { rewardEarned ->
+                    onAdClosedOrFailed(rewardEarned)
+                }
+            )
+        } else {
+            loadRewardedAd(activity)
+            onAdClosedOrFailed(false)
+        }
+    }
+
     private fun destroyAllAds() {
         appOpenAdManager?.disable()
 
@@ -260,10 +308,16 @@ class MonetizationManager private constructor(
             interstitialAdManagers.remove(key)?.destroy()
         }
         interstitialAdManagers.clear()
+
+        rewardedAdManager?.destroy()
+        rewardedAdManager = null
     }
 
     private fun enableAdsIfNeeded() {
         appOpenAdManager?.enable()
+        if (!config.defaultRewardedAdUnitId.isNullOrBlank()) {
+            loadRewardedAd(application)
+        }
     }
 
     fun release() {
@@ -277,6 +331,9 @@ class MonetizationManager private constructor(
             it.destroy()
         }
         interstitialAdManagers.clear()
+
+        rewardedAdManager?.destroy()
+        rewardedAdManager = null
 
         billingManager.destroy()
 
