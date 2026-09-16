@@ -53,6 +53,7 @@ koinBom = "4.2.2"
 googleAds = "25.4.0"
 googleServices = "4.5.0"
 firebaseCrashlyticsPlugin = "3.0.3"
+exifinterface = "1.3.6"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -121,6 +122,7 @@ koin-core = { module = "io.insert-koin:koin-core" }
 koin-android = { module = "io.insert-koin:koin-android" }
 koin-androidx-compose = { module = "io.insert-koin:koin-androidx-compose" }
 googleAds = { group = "com.google.android.gms", name = "play-services-ads", version.ref = "googleAds" }
+androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

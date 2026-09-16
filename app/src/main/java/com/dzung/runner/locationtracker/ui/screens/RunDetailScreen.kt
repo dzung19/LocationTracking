@@ -6,10 +6,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import android.content.Intent
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.DirectionsWalk
+import com.dzung.runner.locationtracker.ui.components.RouteShareBottomSheet
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -50,6 +52,7 @@ fun RunDetailScreen(
     }
 
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showShareBottomSheet by remember { mutableStateOf(false) }
 
     // Trigger loading of points for this session
     LaunchedEffect(sessionId) {
@@ -168,19 +171,10 @@ fun RunDetailScreen(
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
-                        IconButton(onClick = {
-                            val distKm = currentSession.totalDistanceMeters / 1000f
-                            val text = "I completed a %.2f km %s with Location Tracker! Check it out: https://play.google.com/store/apps/details?id=%s"
-                                .format(distKm, if (currentSession.activityType == ActivityType.RUNNING) "run" else "walk", context.packageName)
-                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, text)
-                            }
-                            context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.share_app_title)))
-                        }) {
+                        IconButton(onClick = { showShareBottomSheet = true }) {
                             Icon(
                                 imageVector = Icons.Default.Share,
-                                contentDescription = stringResource(R.string.share_app),
+                                contentDescription = stringResource(R.string.share_route_sheet_title),
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
@@ -411,9 +405,40 @@ fun RunDetailScreen(
                             DetailItem(stringResource(R.string.avg_pace_label), avgPaceStr, Modifier.weight(1f))
                             DetailItem(stringResource(R.string.calories_label), "${session.totalCalories} kcal", Modifier.weight(1f))
                         }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        Button(
+                            onClick = { showShareBottomSheet = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFFC5200), // Strava athletic orange
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.share_route_sheet_title),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+
+    if (showShareBottomSheet && session != null) {
+        RouteShareBottomSheet(
+            points = points,
+            session = session,
+            onDismissRequest = { showShareBottomSheet = false }
+        )
     }
 }

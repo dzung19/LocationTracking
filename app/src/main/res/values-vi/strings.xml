@@ -132,4 +132,26 @@
     <string name="streak_restored_success">Đã khôi phục chuỗi! 🔥 %d ngày</string>
     <string name="premium_streak_restored">Đã khôi phục chuỗi tức thì (Đặc quyền Premium)!</string>
     <string name="ad_not_ready">Quảng cáo chưa sẵn sàng. Vui lòng thử lại sau vài giây.</string>
+
+    <!-- Route Sticker & Photo Share -->
+    <string name="share_route_sheet_title">Chia sẻ lộ trình &amp; Nhãn dán</string>
+    <string name="share_transparent_sticker">Chia sẻ nhãn dán trong suốt</string>
+    <string name="save_to_gallery">Lưu vào Thư viện</string>
+    <string name="saved_to_gallery_success">Đã lưu nhãn dán vào Thư viện ảnh!</string>
+    <string name="saved_to_gallery_error">Không thể lưu ảnh vào máy.</string>
+    <string name="share_photo_with_route">Chia sẻ ảnh đã ghép</string>
+    <string name="pick_background_photo">Thêm ảnh nền</string>
+    <string name="change_background_photo">Đổi ảnh</string>
+    <string name="remove_background_photo">Xóa ảnh</string>
+    <string name="aspect_ratio">Kích thước</string>
+    <string name="ratio_square">1:1 Vuông</string>
+    <string name="ratio_story">9:16 Story</string>
+    <string name="theme_strava_orange">Cam thể thao</string>
+    <string name="theme_pure_white">Trắng sáng</string>
+    <string name="theme_neon_green">Xanh Neon</string>
+    <string name="theme_stealth_black">Đen tuyền</string>
+    <string name="style_route_and_stats">Lộ trình &amp; Thông số</string>
+    <string name="style_route_only">Chỉ lộ trình</string>
+    <string name="generating_image">Đang tạo nhãn dán lộ trình...</string>
+    <string name="insufficient_route_points">Không đủ tọa độ GPS để vẽ lộ trình.</string>
 </resources>

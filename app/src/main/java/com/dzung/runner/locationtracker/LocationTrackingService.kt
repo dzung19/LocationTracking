@@ -27,6 +27,7 @@ import com.dzung.runner.locationtracker.data.repository.UserPreferencesRepositor
 import com.dzung.runner.locationtracker.service.FitnessMetricsCalculator
 import com.dzung.runner.locationtracker.service.GhostRunnerManager
 import com.dzung.runner.locationtracker.service.TrackingNotificationHelper
+import com.dzung.runner.locationtracker.util.RollingPaceCalculator
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -101,6 +102,7 @@ class LocationTrackingService : Service(), SensorEventListener {
     private var isStartingTracking: Boolean = false
 
     private val ghostRunnerManager = GhostRunnerManager()
+    private val rollingPaceCalculator = RollingPaceCalculator()
 
     // Barometer tracking
     private var currentElevation: Float = 0f
@@ -179,10 +181,31 @@ class LocationTrackingService : Service(), SensorEventListener {
 
     private fun setupLocationCallback() {
         locationCallback = object : LocationCallback() {
-            override fun onLocationResult(result: LocationResult) {
-                super.onLocationResult(result)
+            override fun onLocationResult(locationResult: LocationResult) {
                 try {
-                    val location = result.lastLocation ?: return
+                    val location = locationResult.lastLocation ?: return
+
+                    // GPS Accuracy Quality Gate:
+                    // Drop poor accuracy fixes to prevent erratic distance jumps & pace spikes
+                    if (location.hasAccuracy() && location.accuracy > 20.0f) {
+                        Log.d(TAG, "Ignoring location update due to low accuracy: ${location.accuracy}m")
+                        return
+                    }
+
+                    // If we're not currently tracking a session, just update current coordinates
+                    if (!_trackingState.value.isTracking) {
+                        if (location.latitude.isNaN() || location.longitude.isNaN()) return
+                        _trackingState.update {
+                            it.copy(
+                                latitude = location.latitude,
+                                longitude = location.longitude,
+                                accuracy = location.accuracy,
+                                timestamp = location.time
+                            )
+                        }
+                        return
+                    }
+
                     if (location.latitude.isNaN() || location.longitude.isNaN()) return
 
                     // Accuracy gate: ignore poor accuracy fixes (> 25m) for distance/speed
@@ -246,15 +269,23 @@ class LocationTrackingService : Service(), SensorEventListener {
                     val timeDeltaMs = maxOf(0L, location.time - prevLoc.time)
                     val timeDeltaSeconds = timeDeltaMs / 1000f
 
-                    // Determine instantaneous speed (hardware Doppler speed preferred)
-                    val rawSpeedMps = if (location.hasSpeed()) {
+                    // Determine speed (hardware Doppler speed if accurate, otherwise distance delta)
+                    val isHardwareSpeedReliable = location.hasSpeed() &&
+                        (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || !location.hasSpeedAccuracy() || location.speedAccuracyMetersPerSecond < 1.5f)
+
+                    val rawSpeedMps = if (isHardwareSpeedReliable) {
                         location.speed
                     } else if (timeDeltaSeconds > 0f) {
                         distFromAnchor / timeDeltaSeconds
                     } else {
                         0f
                     }
-                    val safeRawSpeed = if (rawSpeedMps.isNaN() || rawSpeedMps.isInfinite() || rawSpeedMps < 0f) 0f else rawSpeedMps
+                    // Physical plausible clamp: max sprint speed ~12 m/s (43.2 km/h)
+                    val safeRawSpeed = if (rawSpeedMps.isNaN() || rawSpeedMps.isInfinite() || rawSpeedMps < 0f) {
+                        0f
+                    } else {
+                        rawSpeedMps.coerceAtMost(12.0f)
+                    }
 
                     // Movement detection deadband
                     val isMovingCondition = (safeRawSpeed >= 0.3f && distFromAnchor >= 2.0f) || (safeRawSpeed >= 0.8f && distFromAnchor >= 1.5f)
@@ -266,6 +297,9 @@ class LocationTrackingService : Service(), SensorEventListener {
 
                         accumulatedDistance += distFromAnchor
                         previousLocation = location
+
+                        // Record sample into rolling pace calculator
+                        rollingPaceCalculator.addSample(location.time, accumulatedDistance)
 
                         // Exponential moving average for smooth speed calculation
                         smoothedSpeedMps = if (smoothedSpeedMps <= 0.1f) {
@@ -316,12 +350,13 @@ class LocationTrackingService : Service(), SensorEventListener {
                         if (lastMovingTimestampMs == 0L || (System.currentTimeMillis() - lastMovingTimestampMs) > 4000L) {
                             isCurrentlyMoving = false
                             smoothedSpeedMps = 0f
+                            rollingPaceCalculator.reset()
                         }
                     }
 
-                    // Calculate instantaneous pace (null when stationary)
-                    val currentPaceSeconds: Int? = if (isCurrentlyMoving && smoothedSpeedMps >= 0.3f) {
-                        (1000f / smoothedSpeedMps).toInt().coerceIn(120, 1800)
+                    // Calculate pace from rolling window (null when stationary or warming up)
+                    val currentPaceSeconds: Int? = if (isCurrentlyMoving) {
+                        rollingPaceCalculator.calculatePace(location.time)
                     } else {
                         null
                     }
@@ -466,6 +501,7 @@ class LocationTrackingService : Service(), SensorEventListener {
             lastMovingTimestampMs = 0L
             previousLocation = null
             startTimeMillis = System.currentTimeMillis()
+            rollingPaceCalculator.reset()
 
             currentElevation = 0f
             lastSlopeDistance = 0f
@@ -561,13 +597,14 @@ class LocationTrackingService : Service(), SensorEventListener {
                         if (lastMovingTimestampMs > 0L && (System.currentTimeMillis() - lastMovingTimestampMs) > 4000L) {
                             isCurrentlyMoving = false
                             smoothedSpeedMps = 0f
+                            rollingPaceCalculator.reset()
                         } else {
                             movingTimeSeconds++
                         }
                     }
 
-                    val currentPace = if (isCurrentlyMoving && smoothedSpeedMps >= 0.3f) {
-                        (1000f / smoothedSpeedMps).toInt().coerceIn(120, 1800)
+                    val currentPace = if (isCurrentlyMoving) {
+                        rollingPaceCalculator.calculatePace(System.currentTimeMillis())
                     } else {
                         null
                     }
@@ -632,6 +669,7 @@ class LocationTrackingService : Service(), SensorEventListener {
         }
 
         timerJob?.cancel()
+        rollingPaceCalculator.reset()
 
         val finalState = _trackingState.value
         val sessionEndTime = if (lastMovingTimestampMs > startTimeMillis) {

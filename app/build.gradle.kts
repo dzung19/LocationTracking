@@ -23,8 +23,8 @@ android {
     applicationId = "com.dzung.runner.locationtracker"
     minSdk = 28
     targetSdk = 37
-    versionCode = 6
-    versionName = "1.4"
+    versionCode = 7
+    versionName = "1.5"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "dummy_key"
@@ -104,6 +104,7 @@ ksp {
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
+  implementation(libs.androidx.exifinterface)
   implementation(libs.firebase.crashlytics)
   // implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)

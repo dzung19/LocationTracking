@@ -141,4 +141,26 @@
     <string name="streak_restored_success">Streak restored! 🔥 %d days</string>
     <string name="premium_streak_restored">Streak restored instantly (Premium perk)!</string>
     <string name="ad_not_ready">Ad is not ready yet. Please try again in a moment.</string>
+
+    <!-- Route Sticker & Photo Share -->
+    <string name="share_route_sheet_title">Share Route Sticker</string>
+    <string name="share_transparent_sticker">Share Transparent Sticker</string>
+    <string name="save_to_gallery">Save to Photos</string>
+    <string name="saved_to_gallery_success">Saved to Photos!</string>
+    <string name="saved_to_gallery_error">Failed to save image.</string>
+    <string name="share_photo_with_route">Share Photo with Route</string>
+    <string name="pick_background_photo">Add Background Photo</string>
+    <string name="change_background_photo">Change Photo</string>
+    <string name="remove_background_photo">Remove Photo</string>
+    <string name="aspect_ratio">Format</string>
+    <string name="ratio_square">1:1 Square</string>
+    <string name="ratio_story">9:16 Story</string>
+    <string name="theme_strava_orange">Strava Orange</string>
+    <string name="theme_pure_white">Pure White</string>
+    <string name="theme_neon_green">Neon Green</string>
+    <string name="theme_stealth_black">Stealth Black</string>
+    <string name="style_route_and_stats">Route &amp; Stats</string>
+    <string name="style_route_only">Route Only</string>
+    <string name="generating_image">Creating route sticker...</string>
+    <string name="insufficient_route_points">Not enough GPS points to render route.</string>
 </resources>
