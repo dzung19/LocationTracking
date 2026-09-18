@@ -1,5 +1,6 @@
 package com.dzung.runner.locationtracker
 
+import android.location.Location
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dzung.runner.locationtracker.data.model.WeatherState
@@ -71,12 +72,32 @@ class LocationViewModel(
     private val _weatherState = MutableStateFlow<WeatherState>(WeatherState.Idle)
     val weatherState: StateFlow<WeatherState> = _weatherState.asStateFlow()
 
+    private var lastWeatherLat: Double? = null
+    private var lastWeatherLon: Double? = null
+    private var lastWeatherTime: Long = 0L
+
     /**
      * Fetches current weather for given latitude and longitude with repository caching.
      */
-    fun fetchWeather(lat: Double, lon: Double) {
+    fun fetchWeather(lat: Double, lon: Double, force: Boolean = false) {
+        val now = System.currentTimeMillis()
+        val lastLat = lastWeatherLat
+        val lastLon = lastWeatherLon
+
+        if (!force && lastLat != null && lastLon != null && _weatherState.value is WeatherState.Success) {
+            val results = FloatArray(1)
+            Location.distanceBetween(lastLat, lastLon, lat, lon, results)
+            if (results[0] < 1500f && (now - lastWeatherTime < 30 * 60 * 1000L)) {
+                return
+            }
+        }
+
         if (_weatherState.value is WeatherState.Loading) return
         _weatherState.value = WeatherState.Loading
+        lastWeatherLat = lat
+        lastWeatherLon = lon
+        lastWeatherTime = now
+
         viewModelScope.launch {
             weatherRepository.getWeather(lat, lon)
                 .onSuccess { _weatherState.value = WeatherState.Success(it) }

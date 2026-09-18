@@ -50,6 +50,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * A Bound and Started Service responsible for tracking user location using FusedLocationProviderClient.
@@ -82,7 +83,7 @@ class LocationTrackingService : Service(), SensorEventListener {
         Log.e(TAG, "Uncaught exception in LocationTrackingService coroutine scope", throwable)
         try {
             FirebaseCrashlytics.getInstance().recordException(throwable)
-        } catch (ignored: Exception) {}
+        } catch (_: Exception) {}
     }
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + coroutineExceptionHandler)
 
@@ -270,8 +271,7 @@ class LocationTrackingService : Service(), SensorEventListener {
                     val timeDeltaSeconds = timeDeltaMs / 1000f
 
                     // Determine speed (hardware Doppler speed if accurate, otherwise distance delta)
-                    val isHardwareSpeedReliable = location.hasSpeed() &&
-                        (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || !location.hasSpeedAccuracy() || location.speedAccuracyMetersPerSecond < 1.5f)
+                    val isHardwareSpeedReliable = location.hasSpeed() && (!location.hasSpeedAccuracy() || location.speedAccuracyMetersPerSecond < 1.5f)
 
                     val rawSpeedMps = if (isHardwareSpeedReliable) {
                         location.speed
@@ -455,12 +455,7 @@ class LocationTrackingService : Service(), SensorEventListener {
                 } else {
                     startForeground(TrackingNotificationHelper.NOTIFICATION_ID, notification)
                 }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                } else {
-                    @Suppress("DEPRECATION")
-                    stopForeground(true)
-                }
+                stopForeground(STOP_FOREGROUND_REMOVE)
             } catch (e: Exception) {
                 Log.e(TAG, "Error handling start without permission", e)
             }
@@ -567,16 +562,11 @@ class LocationTrackingService : Service(), SensorEventListener {
             Log.e(TAG, "Fatal error starting location updates or foreground service", e)
             try {
                 FirebaseCrashlytics.getInstance().recordException(e)
-            } catch (ignored: Exception) {}
+            } catch (_: Exception) {}
             _trackingState.update { it.copy(isTracking = false, errorMessage = "Failed to start tracking: ${e.message}") }
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                } else {
-                    @Suppress("DEPRECATION")
-                    stopForeground(true)
-                }
-            } catch (ignored: Exception) {}
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } catch (_: Exception) {}
             stopSelf()
         } finally {
             isStartingTracking = false
@@ -588,7 +578,7 @@ class LocationTrackingService : Service(), SensorEventListener {
         timerJob = serviceScope.launch {
             while (isActive) {
                 try {
-                    delay(1000L)
+                    delay(1000L.milliseconds)
                     val elapsedSeconds = if (startTimeMillis > 0L) {
                         maxOf(0L, (System.currentTimeMillis() - startTimeMillis) / 1000)
                     } else 0L
@@ -658,12 +648,7 @@ class LocationTrackingService : Service(), SensorEventListener {
         }
 
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-            } else {
-                @Suppress("DEPRECATION")
-                stopForeground(true)
-            }
+            stopForeground(STOP_FOREGROUND_REMOVE)
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping foreground status", e)
         }
@@ -731,12 +716,7 @@ class LocationTrackingService : Service(), SensorEventListener {
             Log.e(TAG, "Error unregistering sensor listener", e)
         }
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-            } else {
-                @Suppress("DEPRECATION")
-                stopForeground(true)
-            }
+            stopForeground(STOP_FOREGROUND_REMOVE)
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping foreground status", e)
         }

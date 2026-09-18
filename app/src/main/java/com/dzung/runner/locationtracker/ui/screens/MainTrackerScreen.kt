@@ -155,7 +155,11 @@ fun MainTrackerScreen(
     val currentLat = state.latitude ?: userPreferences.latitude
     val currentLon = state.longitude ?: userPreferences.longitude
 
-    LaunchedEffect(currentLat, currentLon) {
+    // Quantize coordinates to ~1.1km (0.01 deg) so LaunchedEffect doesn't trigger on every sub-meter GPS update
+    val coarseLat = remember(currentLat) { (currentLat * 100).toInt() }
+    val coarseLon = remember(currentLon) { (currentLon * 100).toInt() }
+
+    LaunchedEffect(coarseLat, coarseLon) {
         viewModel.fetchWeather(currentLat, currentLon)
     }
     
@@ -669,7 +673,7 @@ fun MainTrackerScreen(
                     weatherState = weatherState,
                     onRetry = {
                         if (state.latitude != null && state.longitude != null) {
-                            viewModel.fetchWeather(state.latitude, state.longitude)
+                            viewModel.fetchWeather(state.latitude, state.longitude, force = true)
                         }
                     }
                 )
