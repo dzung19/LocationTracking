@@ -17,6 +17,7 @@ import com.dzung.runner.locationtracker.data.database.RunSession
 import com.dzung.runner.locationtracker.data.repository.UserPreferences
 import com.dzung.runner.locationtracker.data.repository.UserPreferencesRepository
 import kotlinx.coroutines.flow.SharingStarted
+import com.google.android.gms.maps.model.CameraPosition
 import kotlinx.coroutines.flow.stateIn
 
 class LocationViewModel(
@@ -24,6 +25,9 @@ class LocationViewModel(
     private val runDao: RunDao,
     private val userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
+
+    // Retains last camera position across screen transitions
+    var lastCameraPosition: CameraPosition? = null
 
     val allSessions: Flow<List<RunSession>> = runDao.getAllRunSessions()
 

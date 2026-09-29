@@ -12,6 +12,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.History
@@ -504,9 +506,9 @@ fun HistoryCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = if (session.activityType == ActivityType.RUNNING) {
-                            Icons.Default.DirectionsRun
+                            Icons.AutoMirrored.Filled.DirectionsRun
                         } else {
-                            Icons.Default.DirectionsWalk
+                            Icons.AutoMirrored.Filled.DirectionsWalk
                         },
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,

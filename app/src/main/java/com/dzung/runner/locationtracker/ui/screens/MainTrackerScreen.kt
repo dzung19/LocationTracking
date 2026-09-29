@@ -73,11 +73,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -456,29 +458,50 @@ fun MainTrackerScreen(
         )
     }
 
-    val defaultLocation = LatLng(userPreferences.latitude, userPreferences.longitude)
-    
-    val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(defaultLocation, 16f)
-    }
-
-    // If coordinates were newly loaded/saved and GPS is not active yet, animate camera to saved location
-    LaunchedEffect(userPreferences.hasSavedLocation, userPreferences.latitude, userPreferences.longitude) {
-        if (userPreferences.hasSavedLocation && state.latitude == null) {
-            cameraPositionState.animate(
-                CameraUpdateFactory.newLatLngZoom(
-                    LatLng(userPreferences.latitude, userPreferences.longitude),
-                    16f
-                )
-            )
-        }
-    }
-
     val currentLatLng = remember(state.latitude, state.longitude) {
         if (state.latitude != null && state.longitude != null) {
             LatLng(state.latitude, state.longitude)
         } else {
             null
+        }
+    }
+
+    val defaultLocation = LatLng(userPreferences.latitude, userPreferences.longitude)
+
+    // Best initial location: current GPS/tracking coordinates if available,
+    // otherwise saved coordinates from DataStore (if user has saved location),
+    // otherwise fallback default.
+    val bestInitialLocation = currentLatLng
+        ?: if (userPreferences.hasSavedLocation) defaultLocation
+        else defaultLocation
+
+    val cameraPositionState = rememberCameraPositionState {
+        position = viewModel.lastCameraPosition
+            ?: CameraPosition.fromLatLngZoom(bestInitialLocation, 16f)
+    }
+
+    // Persist camera position to ViewModel when leaving composition or when camera finishes moving
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.lastCameraPosition = cameraPositionState.position
+        }
+    }
+
+    LaunchedEffect(cameraPositionState.isMoving) {
+        if (!cameraPositionState.isMoving) {
+            viewModel.lastCameraPosition = cameraPositionState.position
+        }
+    }
+
+    // If coordinates were newly loaded/saved and GPS is not active yet, snap camera to saved location without fly-in animation
+    LaunchedEffect(userPreferences.hasSavedLocation, userPreferences.latitude, userPreferences.longitude) {
+        if (userPreferences.hasSavedLocation && state.latitude == null && viewModel.lastCameraPosition == null) {
+            cameraPositionState.move(
+                CameraUpdateFactory.newLatLngZoom(
+                    LatLng(userPreferences.latitude, userPreferences.longitude),
+                    16f
+                )
+            )
         }
     }
 
@@ -489,7 +512,7 @@ fun MainTrackerScreen(
         }
     }
 
-    // Locate user immediately on app open and persist coordinates to DataStore
+    // Locate user on app cold start and persist coordinates to DataStore
     LaunchedEffect(hasLocationPermission) {
         if (hasLocationPermission) {
             val fusedClient = LocationServices.getFusedLocationProviderClient(context)
@@ -497,9 +520,9 @@ fun MainTrackerScreen(
                 fusedClient.lastLocation.addOnSuccessListener { loc ->
                     if (loc != null) {
                         val target = LatLng(loc.latitude, loc.longitude)
-                        if (state.latitude == null) {
+                        if (state.latitude == null && viewModel.lastCameraPosition == null) {
                             coroutineScope.launch {
-                                cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(target, 16f))
+                                cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(target, 16f))
                             }
                         }
                         viewModel.saveLocation(loc.latitude, loc.longitude)
@@ -513,9 +536,9 @@ fun MainTrackerScreen(
                 ).addOnSuccessListener { loc ->
                     if (loc != null) {
                         val target = LatLng(loc.latitude, loc.longitude)
-                        if (state.latitude == null) {
+                        if (state.latitude == null && viewModel.lastCameraPosition == null) {
                             coroutineScope.launch {
-                                cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(target, 16f))
+                                cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(target, 16f))
                             }
                         }
                         viewModel.saveLocation(loc.latitude, loc.longitude)
@@ -527,9 +550,19 @@ fun MainTrackerScreen(
         }
     }
 
-    LaunchedEffect(currentLatLng) {
-        currentLatLng?.let { latLng ->
+    var hasSnappedToUserLocation by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(currentLatLng, state.isTracking) {
+        val latLng = currentLatLng ?: return@LaunchedEffect
+        if (state.isTracking) {
+            // Smoothly track user while running/walking
             cameraPositionState.animate(
+                update = CameraUpdateFactory.newLatLngZoom(latLng, 16f)
+            )
+        } else if (!hasSnappedToUserLocation && viewModel.lastCameraPosition == null) {
+            // Instant center on user on cold start when location is first acquired (no animation from nowhere)
+            hasSnappedToUserLocation = true
+            cameraPositionState.move(
                 update = CameraUpdateFactory.newLatLngZoom(latLng, 16f)
             )
         }

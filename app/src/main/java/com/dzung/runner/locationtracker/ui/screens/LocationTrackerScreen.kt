@@ -100,8 +100,9 @@ fun LocationTrackerApp(
                         selected = currentKey is TrackerKey,
                         onClick = {
                             if (currentKey !is TrackerKey) {
-                                backStack.clear()
-                                backStack.add(TrackerKey)
+                                while (backStack.size > 1) {
+                                    backStack.removeLastOrNull()
+                                }
                             }
                         },
                         icon = { Icon(Icons.Default.Map, contentDescription = "Tracker") },
@@ -117,8 +118,9 @@ fun LocationTrackerApp(
                         selected = currentKey is HistoryKey,
                         onClick = {
                             if (currentKey !is HistoryKey) {
-                                backStack.clear()
-                                backStack.add(TrackerKey)
+                                while (backStack.size > 1) {
+                                    backStack.removeLastOrNull()
+                                }
                                 backStack.add(HistoryKey)
                             }
                         },
