@@ -165,6 +165,7 @@
 -keep class com.android.billingclient.** { *; }
 -keep interface com.android.billingclient.** { *; }
 -dontwarn com.android.billingclient.**
+-keep class com.dzung.runner.locationtracker.billing.** { *; }
 
 # Gson Serialization (for AdConfigSet & Remote Config)
 -keep class com.google.gson.** { *; }

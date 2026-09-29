@@ -97,6 +97,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dzung.runner.locationtracker.LocationTrackingState
 import com.dzung.runner.locationtracker.LocationViewModel
 import com.dzung.runner.locationtracker.R
+import com.dzung.runner.locationtracker.billing.PremiumManager
+import com.dzung.runner.locationtracker.ui.components.PremiumPaywallBottomSheet
+import org.koin.core.context.GlobalContext
 import com.dzung.runner.locationtracker.data.database.ActivityType
 import com.dzung.runner.locationtracker.data.model.WeatherState
 import com.dzung.runner.locationtracker.data.repository.UserPreferences
@@ -143,7 +146,14 @@ fun MainTrackerScreen(
     val allSessions by viewModel.allSessions.collectAsStateWithLifecycle(emptyList())
     val coroutineScope = rememberCoroutineScope()
 
+    val premiumManager: PremiumManager = remember { GlobalContext.get().get() }
+    val isProUser by premiumManager.isProUser.collectAsStateWithLifecycle()
+    var showPaywall by remember { mutableStateOf(false) }
+
     val weatherState by viewModel.weatherState.collectAsStateWithLifecycle()
+
+    val shareAppText = stringResource(R.string.share_app_text, context.packageName)
+    val shareAppTitle = stringResource(R.string.share_app_title)
 
     var isTrackerExpanded by remember { mutableStateOf(!state.isTracking) }
 
@@ -279,6 +289,13 @@ fun MainTrackerScreen(
                     Text(stringResource(R.string.cancel))
                 }
             }
+        )
+    }
+
+    if (showPaywall) {
+        PremiumPaywallBottomSheet(
+            premiumManager = premiumManager,
+            onDismissRequest = { showPaywall = false }
         )
     }
 
@@ -680,7 +697,7 @@ fun MainTrackerScreen(
             }
         }
 
-        // Top-Right Floating Actions: Share, Like & Ghost Comparison Widget
+        // Top-Right Floating Actions: PRO Pill, Share & Like, Ghost Comparison Widget
         Column(
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -688,6 +705,29 @@ fun MainTrackerScreen(
             horizontalAlignment = Alignment.End,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            // PRO Upgrade Floating Pill
+            Surface(
+                onClick = { showPaywall = true },
+                shape = CircleShape,
+                color = if (isProUser) Color(0xFF4CAF50) else Color(0xFFFC5200),
+                contentColor = Color.White,
+                tonalElevation = 4.dp,
+                shadowElevation = 6.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "👑", fontSize = 13.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (isProUser) stringResource(R.string.vip_badge) else stringResource(R.string.pro_badge),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            }
+
             // Share and Like / Rate App Pill
             Surface(
                 shape = CircleShape,
@@ -701,7 +741,7 @@ fun MainTrackerScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(
-                        onClick = { shareApp(context) },
+                        onClick = { shareApp(context, shareAppText, shareAppTitle) },
                         modifier = Modifier.size(38.dp)
                     ) {
                         Icon(
@@ -1291,13 +1331,12 @@ fun GhostComparisonWidget(
 /**
  * Triggers Android share sheet with app link and promo message.
  */
-private fun shareApp(context: Context) {
+private fun shareApp(context: Context, shareText: String, chooserTitle: String) {
     val sendIntent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
-        val text = context.getString(R.string.share_app_text, context.packageName)
-        putExtra(Intent.EXTRA_TEXT, text)
+        putExtra(Intent.EXTRA_TEXT, shareText)
     }
-    val chooser = Intent.createChooser(sendIntent, context.getString(R.string.share_app_title))
+    val chooser = Intent.createChooser(sendIntent, chooserTitle)
     context.startActivity(chooser)
 }
 

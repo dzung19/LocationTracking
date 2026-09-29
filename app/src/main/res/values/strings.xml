@@ -136,10 +136,12 @@
     <!-- Streak Restoration -->
     <string name="restore_streak_title">Restore Streak</string>
     <string name="restore_streak_desc">Watch a short ad to repair your %d-day streak!</string>
-    <string name="restore_streak_button">Restore Streak</string>
+    <string name="restore_streak_premium_desc">As a Runner PRO member, you can restore your %d-day streak instantly with zero ads!</string>
+    <string name="restore_streak_button">Watch Ad to Restore</string>
+    <string name="restore_streak_premium_button">Restore Streak (No Ads)</string>
     <string name="streak_lost_banner">Streak broken (%d days lost)</string>
     <string name="streak_restored_success">Streak restored! 🔥 %d days</string>
-    <string name="premium_streak_restored">Streak restored instantly (Premium perk)!</string>
+    <string name="premium_streak_restored">Streak restored instantly (PRO perk)!</string>
     <string name="ad_not_ready">Ad is not ready yet. Please try again in a moment.</string>
 
     <!-- Route Sticker & Photo Share -->
@@ -163,4 +165,31 @@
     <string name="style_route_only">Route Only</string>
     <string name="generating_image">Creating route sticker...</string>
     <string name="insufficient_route_points">Not enough GPS points to render route.</string>
+    <string name="brand_watermark">App Watermark</string>
+    <string name="watermark_pro_badge">PRO</string>
+
+    <!-- In-App Purchase & Paywall -->
+    <string name="paywall_title">Runner PRO</string>
+    <string name="paywall_subtitle">Choose the plan that suits your athletic journey</string>
+    <string name="tier_bundle_badge">BEST VALUE — SAVE 35%</string>
+    <string name="tier_bundle_title">Runner PRO Bundle</string>
+    <string name="tier_bundle_desc">All-in-one upgrade: Remove Ads + Clean Route Stickers + VIP Streak Restore</string>
+    <string name="tier_ads_title">Remove Ads</string>
+    <string name="tier_ads_desc">Zero banners, interstitials, or app open ads throughout the app</string>
+    <string name="tier_watermark_title">Clean Route Stickers</string>
+    <string name="tier_watermark_desc">Remove \'Location Tracker\' logo from exported stickers &amp; photos</string>
+    <string name="feature_no_ads">100% Ad-Free Experience</string>
+    <string name="feature_no_watermark">Watermark-Free Route Stickers</string>
+    <string name="feature_vip_streak">Instant VIP Streak Restore (No Ads)</string>
+    <string name="feature_lifetime">One-time purchase • Lifetime access</string>
+    <string name="already_owned">ACTIVE</string>
+    <string name="btn_continue_format">Unlock %1$s • %2$s</string>
+    <string name="btn_continue_owned">Already Unlocked</string>
+    <string name="restore_purchases">Restore Purchases</string>
+    <string name="restore_success">Purchases restored successfully!</string>
+    <string name="restore_empty">No prior purchases found for this account.</string>
+    <string name="paywall_terms">One-time purchase • Lifetime access on your Google Account • No auto-renewal</string>
+    <string name="pro_badge">PRO</string>
+    <string name="vip_badge">VIP</string>
+    <string name="go_pro">Upgrade to PRO</string>
 </resources>

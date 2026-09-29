@@ -30,6 +30,9 @@ val appModule = module {
     // Provide UserPreferencesRepository singleton
     single { UserPreferencesRepository(androidContext()) }
 
+    // Provide PremiumManager singleton for IAP & Entitlements
+    single { com.dzung.runner.locationtracker.billing.PremiumManager(androidContext(), get()) }
+
     // Provide Moshi
     single { Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build() }
 

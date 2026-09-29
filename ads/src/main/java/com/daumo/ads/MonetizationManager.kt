@@ -60,6 +60,15 @@ class MonetizationManager private constructor(
     }
     
     
+    val billing: BillingManager?
+        get() = if (::billingManager.isInitialized) billingManager else null
+
+    val isAdsRemoved: Boolean
+        get() = if (::billingManager.isInitialized) billingManager.isAdsRemoved.value else _isUserPremium
+
+    val isWatermarkRemoved: Boolean
+        get() = if (::billingManager.isInitialized) billingManager.isWatermarkRemoved.value else false
+
     private fun initializeComponents() {
         appOpenAdManager = config.appOpenAdUnitId?.takeIf { it.isNotBlank() }?.let { AppOpenAdManager(application, it) }
         
@@ -77,8 +86,9 @@ class MonetizationManager private constructor(
         }
 
         billingManager = BillingManager(
-            application,
+            context = application,
             onUserPurchasedRemoveAds = {
+                destroyAllAds()
             },
             onBillingSetupFailed = {
             },
@@ -87,15 +97,18 @@ class MonetizationManager private constructor(
         )
 
         monetizationScope.launch {
-            billingManager.isUserPremium.collectLatest { isPremium ->
-                if (_isUserPremium != isPremium) {
-                    _isUserPremium = isPremium
-                    if (isPremium) {
-                        destroyAllAds()
-                    } else {
-                        enableAdsIfNeeded()
-                    }
+            billingManager.isAdsRemoved.collectLatest { adsRemoved ->
+                if (adsRemoved) {
+                    destroyAllAds()
+                } else {
+                    enableAdsIfNeeded()
                 }
+            }
+        }
+
+        monetizationScope.launch {
+            billingManager.isUserPremium.collectLatest { isPremium ->
+                _isUserPremium = isPremium
             }
         }
     }
@@ -250,10 +263,13 @@ class MonetizationManager private constructor(
     }
 
     fun launchRemoveAdsPurchaseFlow(activity: Activity) {
-        if (isUserPremium) {
-            return
+        launchPurchaseFlow(activity, BillingConstants.SKU_REMOVE_ADS)
+    }
+
+    fun launchPurchaseFlow(activity: Activity, productId: String) {
+        if (::billingManager.isInitialized) {
+            billingManager.launchPurchaseFlow(activity, productId)
         }
-        billingManager.launchPurchaseFlow(activity)
     }
 
     fun loadRewardedAd(context: Context) {
@@ -309,8 +325,10 @@ class MonetizationManager private constructor(
         }
         interstitialAdManagers.clear()
 
-        rewardedAdManager?.destroy()
-        rewardedAdManager = null
+        if (isUserPremium) {
+            rewardedAdManager?.destroy()
+            rewardedAdManager = null
+        }
     }
 
     private fun enableAdsIfNeeded() {

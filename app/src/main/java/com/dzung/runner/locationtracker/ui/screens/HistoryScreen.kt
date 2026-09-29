@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsRun
@@ -42,6 +43,10 @@ import com.dzung.runner.locationtracker.data.database.LocationPoint
 import com.dzung.runner.locationtracker.data.database.RunSession
 import com.dzung.runner.locationtracker.data.database.RunStats
 import com.dzung.runner.locationtracker.TimeUtils
+import com.daumo.ads.BillingConstants
+import com.dzung.runner.locationtracker.billing.PremiumManager
+import com.dzung.runner.locationtracker.ui.components.PremiumPaywallBottomSheet
+import org.koin.core.context.GlobalContext
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -75,8 +80,12 @@ fun HistoryScreen(
         monetizationManager?.loadRewardedAd(context)
     }
 
+    val premiumManager: PremiumManager = remember { GlobalContext.get().get() }
+    val isProUser by premiumManager.isProUser.collectAsStateWithLifecycle()
+
     var showDatePicker by remember { mutableStateOf(false) }
     var showRestoreStreakDialog by remember { mutableStateOf(false) }
+    var showPaywallInHistory by remember { mutableStateOf(false) }
 
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState()
@@ -104,13 +113,18 @@ fun HistoryScreen(
 
     if (showRestoreStreakDialog) {
         val potential = restoreStreakInfo.potentialStreak
+        val isPremium = isProUser // ONLY true premium users (premium_bundle)
+        val premiumStreakRestoredMsg = stringResource(R.string.premium_streak_restored)
+        val streakRestoredSuccessMsg = stringResource(R.string.streak_restored_success, potential)
+        val adNotReadyMsg = stringResource(R.string.ad_not_ready)
+
         AlertDialog(
             onDismissRequest = { showRestoreStreakDialog = false },
             icon = {
                 Icon(
                     imageVector = Icons.Default.LocalFireDepartment,
                     contentDescription = null,
-                    tint = Color(0xFFFF9800),
+                    tint = if (isPremium) Color(0xFF4CAF50) else Color(0xFFFF9800),
                     modifier = Modifier.size(32.dp)
                 )
             },
@@ -122,7 +136,11 @@ fun HistoryScreen(
             },
             text = {
                 Text(
-                    text = stringResource(R.string.restore_streak_desc, potential),
+                    text = if (isPremium) {
+                        stringResource(R.string.restore_streak_premium_desc, potential)
+                    } else {
+                        stringResource(R.string.restore_streak_desc, potential)
+                    },
                     style = MaterialTheme.typography.bodyMedium
                 )
             },
@@ -130,19 +148,18 @@ fun HistoryScreen(
                 Button(
                     onClick = {
                         showRestoreStreakDialog = false
-                        val currentActivity = activity
-                        if (monetizationManager?.isUserPremium == true) {
+                        if (isPremium) {
                             viewModel.restoreStreak()
-                            Toast.makeText(context, context.getString(R.string.premium_streak_restored), Toast.LENGTH_SHORT).show()
-                        } else if (currentActivity != null) {
+                            Toast.makeText(context, premiumStreakRestoredMsg, Toast.LENGTH_SHORT).show()
+                        } else if (activity != null) {
                             if (monetizationManager?.isRewardedAdLoaded() == true) {
                                 monetizationManager.showRewardedAd(
-                                    activity = currentActivity,
+                                    activity = activity,
                                     onUserEarnedReward = {
                                         viewModel.restoreStreak()
                                         Toast.makeText(
                                             context,
-                                            context.getString(R.string.streak_restored_success, potential),
+                                            streakRestoredSuccessMsg,
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     },
@@ -153,19 +170,38 @@ fun HistoryScreen(
                                     }
                                 )
                             } else {
-                                monetizationManager?.loadRewardedAd(currentActivity)
-                                Toast.makeText(context, context.getString(R.string.ad_not_ready), Toast.LENGTH_SHORT).show()
+                                monetizationManager?.loadRewardedAd(activity)
+                                Toast.makeText(context, adNotReadyMsg, Toast.LENGTH_SHORT).show()
                             }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800))
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isPremium) Color(0xFF4CAF50) else Color(0xFFFF9800)
+                    )
                 ) {
-                    Text(stringResource(R.string.restore_streak_button), fontWeight = FontWeight.Bold)
+                    Text(
+                        text = if (isPremium) {
+                            stringResource(R.string.restore_streak_premium_button)
+                        } else {
+                            stringResource(R.string.restore_streak_button)
+                        },
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showRestoreStreakDialog = false }) {
-                    Text(stringResource(R.string.cancel))
+                Row {
+                    if (!isPremium) {
+                        TextButton(onClick = {
+                            showRestoreStreakDialog = false
+                            showPaywallInHistory = true
+                        }) {
+                            Text(stringResource(R.string.go_pro), color = Color(0xFFFC5200), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    TextButton(onClick = { showRestoreStreakDialog = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
                 }
             }
         )
@@ -192,11 +228,32 @@ fun HistoryScreen(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    IconButton(onClick = { showDatePicker = true }) {
-                        Icon(
-                            imageVector = Icons.Default.DateRange,
-                            contentDescription = stringResource(R.string.filter_by_date)
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            onClick = { showPaywallInHistory = true },
+                            shape = CircleShape,
+                            color = if (isProUser) Color(0xFF4CAF50) else Color(0xFFFC5200),
+                            contentColor = Color.White
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("👑", fontSize = 11.sp)
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = if (isProUser) stringResource(R.string.vip_badge) else stringResource(R.string.pro_badge),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            }
+                        }
+                        IconButton(onClick = { showDatePicker = true }) {
+                            Icon(
+                                imageVector = Icons.Default.DateRange,
+                                contentDescription = stringResource(R.string.filter_by_date)
+                            )
+                        }
                     }
                 }
             }
@@ -338,6 +395,14 @@ fun HistoryScreen(
                 }
             }
         }
+    }
+
+    if (showPaywallInHistory) {
+        PremiumPaywallBottomSheet(
+            premiumManager = premiumManager,
+            initialTargetSku = BillingConstants.SKU_PREMIUM_BUNDLE,
+            onDismissRequest = { showPaywallInHistory = false }
+        )
     }
 }
 

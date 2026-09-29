@@ -34,6 +34,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dzung.runner.locationtracker.R
+import com.dzung.runner.locationtracker.billing.PremiumManager
+import com.daumo.ads.BillingConstants
+import org.koin.core.context.GlobalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dzung.runner.locationtracker.data.database.LocationPoint
 import com.dzung.runner.locationtracker.data.database.RunSession
 import com.dzung.runner.locationtracker.util.*
@@ -56,6 +60,7 @@ fun RouteShareBottomSheet(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var selectedRatio by remember { mutableStateOf(RouteAspectRatio.SQUARE_1_1) }
     var selectedTheme by remember { mutableStateOf(RouteTheme.STRAVA_ORANGE) }
@@ -65,6 +70,17 @@ fun RouteShareBottomSheet(
 
     var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var isGenerating by remember { mutableStateOf(false) }
+
+    val premiumManager: PremiumManager = remember { GlobalContext.get().get() }
+    val isWatermarkRemoved by premiumManager.isWatermarkRemoved.collectAsStateWithLifecycle()
+    var userToggledWatermark by remember { mutableStateOf<Boolean?>(null) }
+    val effectiveShowWatermark = if (isWatermarkRemoved) (userToggledWatermark ?: false) else true
+    var showPaywallDialog by remember { mutableStateOf(false) }
+
+    val sharePhotoTitle = stringResource(R.string.share_photo_with_route)
+    val shareTransparentTitle = stringResource(R.string.share_transparent_sticker)
+    val savedToGallerySuccessMsg = stringResource(R.string.saved_to_gallery_success)
+    val savedToGalleryErrorMsg = stringResource(R.string.saved_to_gallery_error)
 
     // Photo picker launcher
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -79,14 +95,14 @@ fun RouteShareBottomSheet(
     }
 
     // Generate/refresh preview whenever configuration changes
-    LaunchedEffect(points, session, selectedRatio, selectedTheme, selectedStyle, backgroundPhotoBitmap) {
+    LaunchedEffect(points, session, selectedRatio, selectedTheme, selectedStyle, backgroundPhotoBitmap, effectiveShowWatermark) {
         if (points.size < 2) return@LaunchedEffect
         withContext(Dispatchers.Default) {
             val config = RouteStickerConfig(
                 aspectRatio = selectedRatio,
                 theme = selectedTheme,
                 style = selectedStyle,
-                showBrandWatermark = true
+                showBrandWatermark = effectiveShowWatermark
             )
             previewBitmap = if (backgroundPhotoBitmap != null) {
                 RouteBitmapGenerator.generateCompositedBitmap(
@@ -107,6 +123,7 @@ fun RouteShareBottomSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = modifier
@@ -130,7 +147,15 @@ fun RouteShareBottomSheet(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
-                IconButton(onClick = onDismissRequest) {
+                IconButton(
+                    onClick = {
+                        coroutineScope.launch { sheetState.hide() }.invokeOnCompletion {
+                            if (!sheetState.isVisible) {
+                                onDismissRequest()
+                            }
+                        }
+                    }
+                ) {
                     Icon(imageVector = Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
                 }
             }
@@ -340,7 +365,58 @@ fun RouteShareBottomSheet(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Watermark Toggle with PRO badge
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = stringResource(R.string.brand_watermark),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            if (!isWatermarkRemoved) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = Color(0xFFFC5200),
+                                    contentColor = Color.White
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.watermark_pro_badge),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Switch(
+                            checked = effectiveShowWatermark,
+                            onCheckedChange = { isChecked ->
+                                if (!isWatermarkRemoved && !isChecked) {
+                                    showPaywallDialog = true
+                                } else {
+                                    userToggledWatermark = isChecked
+                                }
+                            }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -351,7 +427,7 @@ fun RouteShareBottomSheet(
                         onClick = {
                             coroutineScope.launch {
                                 isGenerating = true
-                                val config = RouteStickerConfig(selectedRatio, selectedTheme, selectedStyle, true)
+                                val config = RouteStickerConfig(selectedRatio, selectedTheme, selectedStyle, effectiveShowWatermark)
                                 val finalBmp = withContext(Dispatchers.Default) {
                                     RouteBitmapGenerator.generateCompositedBitmap(
                                         backgroundPhoto = backgroundPhotoBitmap!!,
@@ -368,7 +444,7 @@ fun RouteShareBottomSheet(
                                     RouteShareManager.shareImageUri(
                                         context,
                                         uri,
-                                        context.getString(R.string.share_photo_with_route)
+                                        sharePhotoTitle
                                     )
                                 }
                             }
@@ -396,7 +472,7 @@ fun RouteShareBottomSheet(
                     onClick = {
                         coroutineScope.launch {
                             isGenerating = true
-                            val config = RouteStickerConfig(selectedRatio, selectedTheme, selectedStyle, true)
+                            val config = RouteStickerConfig(selectedRatio, selectedTheme, selectedStyle, effectiveShowWatermark)
                             val finalBmp = withContext(Dispatchers.Default) {
                                 RouteBitmapGenerator.generateTransparentRouteBitmap(
                                     points = points,
@@ -412,7 +488,7 @@ fun RouteShareBottomSheet(
                                 RouteShareManager.shareImageUri(
                                     context,
                                     uri,
-                                    context.getString(R.string.share_transparent_sticker)
+                                    shareTransparentTitle
                                 )
                             }
                         }
@@ -443,7 +519,7 @@ fun RouteShareBottomSheet(
                     onClick = {
                         coroutineScope.launch {
                             isGenerating = true
-                            val config = RouteStickerConfig(selectedRatio, selectedTheme, selectedStyle, true)
+                            val config = RouteStickerConfig(selectedRatio, selectedTheme, selectedStyle, effectiveShowWatermark)
                             val finalBmp = withContext(Dispatchers.Default) {
                                 if (backgroundPhotoBitmap != null) {
                                     RouteBitmapGenerator.generateCompositedBitmap(
@@ -466,7 +542,7 @@ fun RouteShareBottomSheet(
                             isGenerating = false
                             Toast.makeText(
                                 context,
-                                if (success) context.getString(R.string.saved_to_gallery_success) else context.getString(R.string.saved_to_gallery_error),
+                                if (success) savedToGallerySuccessMsg else savedToGalleryErrorMsg,
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
@@ -482,6 +558,14 @@ fun RouteShareBottomSheet(
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
+    }
+
+    if (showPaywallDialog) {
+        PremiumPaywallBottomSheet(
+            premiumManager = premiumManager,
+            initialTargetSku = BillingConstants.SKU_REMOVE_WATERMARK,
+            onDismissRequest = { showPaywallDialog = false }
+        )
     }
 }
 

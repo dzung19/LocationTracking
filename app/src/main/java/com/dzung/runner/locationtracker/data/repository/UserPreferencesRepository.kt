@@ -35,6 +35,7 @@ class UserPreferencesRepository(private val context: Context) {
         val KEY_WEIGHT = floatPreferencesKey("user_weight")
         val KEY_MARKER_ICON = stringPreferencesKey("marker_icon")
         val KEY_RESTORED_STREAK_DATES = stringSetPreferencesKey("restored_streak_dates")
+        val KEY_CACHED_PURCHASES = stringSetPreferencesKey("cached_purchased_skus")
 
         const val DEFAULT_LATITUDE = 10.762622
         const val DEFAULT_LONGITUDE = 106.660172
@@ -115,6 +116,29 @@ class UserPreferencesRepository(private val context: Context) {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error saving restored streak date to DataStore", e)
+        }
+    }
+
+    val cachedPurchasesFlow: Flow<Set<String>> = context.locationDataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                Log.e(TAG, "Error reading cached purchases from DataStore", exception)
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { prefs ->
+            prefs[KEY_CACHED_PURCHASES] ?: emptySet()
+        }
+
+    suspend fun saveCachedPurchases(purchases: Set<String>) {
+        try {
+            context.locationDataStore.edit { prefs ->
+                prefs[KEY_CACHED_PURCHASES] = purchases
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving cached purchases to DataStore", e)
         }
     }
 }

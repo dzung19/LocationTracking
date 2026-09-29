@@ -172,6 +172,8 @@ dependencies {
   ksp(libs.moshi.kotlin.codegen)
 
   implementation(libs.googleAds)
+  implementation(libs.billing)
+  implementation(libs.billing.ktx)
   implementation(project(":ads"))
 }
 

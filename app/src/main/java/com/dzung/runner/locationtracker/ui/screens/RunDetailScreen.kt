@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.platform.LocalContext
 import com.dzung.runner.locationtracker.R
 import com.dzung.runner.locationtracker.HistoryViewModel
 import com.dzung.runner.locationtracker.components.BannerAd
@@ -43,7 +42,6 @@ fun RunDetailScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val runSessions by viewModel.runSessions.collectAsStateWithLifecycle()
     val sessionPoints by viewModel.sessionPoints.collectAsStateWithLifecycle()
 

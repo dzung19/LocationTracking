@@ -127,10 +127,12 @@
     <!-- Streak Restoration -->
     <string name="restore_streak_title">Khôi phục chuỗi</string>
     <string name="restore_streak_desc">Xem một đoạn quảng cáo ngắn để khôi phục chuỗi %d ngày của bạn!</string>
-    <string name="restore_streak_button">Khôi phục chuỗi</string>
+    <string name="restore_streak_premium_desc">Với tư cách thành viên Runner PRO, bạn có thể khôi phục chuỗi %d ngày tức thì mà không cần xem quảng cáo!</string>
+    <string name="restore_streak_button">Xem quảng cáo để khôi phục</string>
+    <string name="restore_streak_premium_button">Khôi phục chuỗi (Không quảng cáo)</string>
     <string name="streak_lost_banner">Chuỗi bị gián đoạn (mất %d ngày)</string>
     <string name="streak_restored_success">Đã khôi phục chuỗi! 🔥 %d ngày</string>
-    <string name="premium_streak_restored">Đã khôi phục chuỗi tức thì (Đặc quyền Premium)!</string>
+    <string name="premium_streak_restored">Đã khôi phục chuỗi tức thì (Đặc quyền PRO)!</string>
     <string name="ad_not_ready">Quảng cáo chưa sẵn sàng. Vui lòng thử lại sau vài giây.</string>
 
     <!-- Route Sticker & Photo Share -->
@@ -154,4 +156,31 @@
     <string name="style_route_only">Chỉ lộ trình</string>
     <string name="generating_image">Đang tạo nhãn dán lộ trình...</string>
     <string name="insufficient_route_points">Không đủ tọa độ GPS để vẽ lộ trình.</string>
+    <string name="brand_watermark">Logo ứng dụng</string>
+    <string name="watermark_pro_badge">PRO</string>
+
+    <!-- In-App Purchase & Paywall (Vietnamese) -->
+    <string name="paywall_title">Nâng cấp Runner PRO</string>
+    <string name="paywall_subtitle">Chọn gói nâng cấp phù hợp nhất cho trải nghiệm chạy bộ của bạn</string>
+    <string name="tier_bundle_badge">TIẾT KIỆM 35% — TỐT NHẤT</string>
+    <string name="tier_bundle_title">Gói Toàn Diện PRO Bundle</string>
+    <string name="tier_bundle_desc">Trọn bộ đặc quyền: Gỡ sạch quảng cáo + Xóa logo nhãn dán + Khôi phục chuỗi VIP</string>
+    <string name="tier_ads_title">Gỡ quảng cáo</string>
+    <string name="tier_ads_desc">Trải nghiệm mượt mà, không banner, interstitial hay app open ad</string>
+    <string name="tier_watermark_title">Xóa logo chia sẻ</string>
+    <string name="tier_watermark_desc">Xuất nhãn dán &amp; ảnh chạy không còn dòng chữ \'Location Tracker\'</string>
+    <string name="feature_no_ads">100% Không có quảng cáo</string>
+    <string name="feature_no_watermark">Xóa logo ứng dụng trên ảnh chia sẻ</string>
+    <string name="feature_vip_streak">Khôi phục chuỗi ngày chạy tức thì (Không cần xem ad)</string>
+    <string name="feature_lifetime">Mua một lần • Sử dụng vĩnh viễn</string>
+    <string name="already_owned">ĐÃ SỞ HỮU</string>
+    <string name="btn_continue_format">Mở khóa %1$s • %2$s</string>
+    <string name="btn_continue_owned">Đã kích hoạt gói này</string>
+    <string name="restore_purchases">Khôi phục gói mua</string>
+    <string name="restore_success">Khôi phục các gói đã mua thành công!</string>
+    <string name="restore_empty">Không tìm thấy giao dịch nào đã mua trên tài khoản này.</string>
+    <string name="paywall_terms">Thanh toán một lần • Sở hữu vĩnh viễn trên tài khoản Google • Không tự động gia hạn</string>
+    <string name="pro_badge">PRO</string>
+    <string name="vip_badge">VIP</string>
+    <string name="go_pro">Nâng cấp PRO</string>
 </resources>

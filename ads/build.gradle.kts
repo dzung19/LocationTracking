@@ -38,11 +38,11 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
 
-    // For ADS
+    // For ADS & Billing
     implementation(libs.play.services.ads.v2470)
     implementation("androidx.lifecycle:lifecycle-process:2.8.4")
-    implementation(libs.billing)
-    implementation(libs.billing.ktx)
+    api(libs.billing)
+    api(libs.billing.ktx)
 
     // implementation("com.google.android.gms:play-services-ads-api:24.7.0") // Usually included in play-services-ads
 
