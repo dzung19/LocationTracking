@@ -27,8 +27,8 @@
     <string name="calories_label">CALO</string>
     <string name="elevation_label">ĐỘ CAO</string>
     <string name="slope_label">ĐỘ DỐC</string>
-    <string name="walk">Đi bộ 🚶‍♂️</string>
-    <string name="run">Chạy 🏃‍♂️</string>
+    <string name="walk">Đi bộ</string>
+    <string name="run">Chạy</string>
     <string name="start">Bắt đầu</string>
     <string name="stop">Dừng</string>
     <string name="detecting_location">Đang dò vị trí...</string>
@@ -45,8 +45,8 @@
     <string name="show_all_activities">Hiển thị tất cả hoạt động</string>
     
     <!-- Orange Tree Streak Card -->
-    <string name="streak_day_streak">🔥 Chuỗi %d ngày chạy!</string>
-    <string name="no_active_streak">😴 Chưa có chuỗi chạy</string>
+    <string name="streak_day_streak">Chuỗi %d ngày chạy!</string>
+    <string name="no_active_streak">Chưa có chuỗi chạy</string>
     <string name="sprout">Mầm cam</string>
     <string name="sapling">Cây con</string>
     <string name="young_tree">Cây nhỡ</string>
@@ -82,11 +82,11 @@
     <string name="end_point">KẾT THÚC</string>
     
     <!-- Weather Advisor Recommendations -->
-    <string name="weather_rainy">Trời mưa ☔. Bạn nên chạy bộ trong nhà.</string>
-    <string name="weather_hot">Trời rất nóng! 🥵 Hãy uống đủ nước và tránh chạy giờ nắng gắt.</string>
-    <string name="weather_chilly">Trời lạnh 🥶. Hãy mặc nhiều lớp áo nhé!</string>
-    <string name="weather_snowy">Trời tuyết! ❄️ Hãy cẩn thận đường trơn trượt.</string>
-    <string name="weather_perfect">Thời tiết tuyệt vời để chạy bộ! 🏃‍♂️</string>
+    <string name="weather_rainy">Trời mưa. Bạn nên chạy bộ trong nhà.</string>
+    <string name="weather_hot">Trời rất nóng! Hãy uống đủ nước và tránh chạy giờ nắng gắt.</string>
+    <string name="weather_chilly">Trời lạnh. Hãy mặc nhiều lớp áo nhé!</string>
+    <string name="weather_snowy">Trời tuyết! Hãy cẩn thận đường trơn trượt.</string>
+    <string name="weather_perfect">Thời tiết tuyệt vời để chạy bộ!</string>
     <string name="session_not_found">Không tìm thấy hoạt động</string>
     <string name="running_workout">Buổi chạy bộ</string>
     <string name="walking_workout">Buổi đi bộ</string>
@@ -131,7 +131,7 @@
     <string name="restore_streak_button">Xem quảng cáo để khôi phục</string>
     <string name="restore_streak_premium_button">Khôi phục chuỗi (Không quảng cáo)</string>
     <string name="streak_lost_banner">Chuỗi bị gián đoạn (mất %d ngày)</string>
-    <string name="streak_restored_success">Đã khôi phục chuỗi! 🔥 %d ngày</string>
+    <string name="streak_restored_success">Đã khôi phục chuỗi! %d ngày</string>
     <string name="premium_streak_restored">Đã khôi phục chuỗi tức thì (Đặc quyền PRO)!</string>
     <string name="ad_not_ready">Quảng cáo chưa sẵn sàng. Vui lòng thử lại sau vài giây.</string>
 

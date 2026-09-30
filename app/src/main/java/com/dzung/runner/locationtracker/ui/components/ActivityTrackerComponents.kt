@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Terrain
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -349,7 +350,7 @@ fun GhostDuelCard(
                 modifier = Modifier.weight(1f)
             ) {
                 Icon(
-                    imageVector = Icons.Default.EmojiEvents,
+                    imageVector = if (isLeading) Icons.Default.EmojiEvents else Icons.Default.Warning,
                     contentDescription = null,
                     tint = duelColor,
                     modifier = Modifier.size(22.dp)
@@ -357,7 +358,7 @@ fun GhostDuelCard(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
-                        text = if (isLeading) "🏆 LEADING GHOST" else "⚠️ BEHIND GHOST",
+                        text = if (isLeading) "LEADING GHOST" else "BEHIND GHOST",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Black,
                         color = duelColor

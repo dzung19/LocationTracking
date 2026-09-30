@@ -6,7 +6,20 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -14,43 +27,67 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.DirectionsWalk
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.InputChip
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
-import com.daumo.ads.DynamicAdsManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.ui.res.stringResource
-import com.dzung.runner.locationtracker.R
+import com.daumo.ads.BillingConstants
+import com.daumo.ads.DynamicAdsManager
 import com.dzung.runner.locationtracker.HistoryViewModel
+import com.dzung.runner.locationtracker.R
+import com.dzung.runner.locationtracker.TimeUtils
+import com.dzung.runner.locationtracker.billing.PremiumManager
 import com.dzung.runner.locationtracker.components.BannerAd
 import com.dzung.runner.locationtracker.data.database.ActivityType
 import com.dzung.runner.locationtracker.data.database.LocationPoint
 import com.dzung.runner.locationtracker.data.database.RunSession
 import com.dzung.runner.locationtracker.data.database.RunStats
-import com.dzung.runner.locationtracker.TimeUtils
-import com.daumo.ads.BillingConstants
-import com.dzung.runner.locationtracker.billing.PremiumManager
 import com.dzung.runner.locationtracker.ui.components.PremiumPaywallBottomSheet
 import org.koin.core.context.GlobalContext
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,7 +112,7 @@ fun HistoryScreen(
     val context = LocalContext.current
     val activity = context as? Activity
     val monetizationManager = remember {
-        try { DynamicAdsManager.getInstance().getMonetizationManager() } catch (e: Exception) { null }
+        try { DynamicAdsManager.getInstance().getMonetizationManager() } catch (_: Exception) { null }
     }
 
     LaunchedEffect(Unit) {
@@ -241,7 +278,12 @@ fun HistoryScreen(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("👑", fontSize = 11.sp)
+                                Icon(
+                                    imageVector = Icons.Default.WorkspacePremium,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(13.dp),
+                                    tint = Color.White
+                                )
                                 Spacer(modifier = Modifier.width(3.dp))
                                 Text(
                                     text = if (isProUser) stringResource(R.string.vip_badge) else stringResource(R.string.pro_badge),
@@ -727,12 +769,12 @@ fun RouteCanvasPreview(
 
 @Composable
 fun OrangeTreeDashboard(
+    modifier: Modifier = Modifier,
     totalXP: Int,
     currentStreak: Int,
     canRestoreStreak: Boolean = false,
     potentialStreak: Int = 0,
-    onRestoreStreakClick: () -> Unit = {},
-    modifier: Modifier = Modifier
+    onRestoreStreakClick: () -> Unit = {}
 ) {
     // Determine level based on XP
     val level = when {
@@ -809,18 +851,34 @@ fun OrangeTreeDashboard(
 
             // Right side: Statistics and progress bar
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = if (canRestoreStreak) {
-                        stringResource(R.string.streak_lost_banner, potentialStreak)
-                    } else if (currentStreak > 0) {
-                        stringResource(R.string.streak_day_streak, currentStreak)
-                    } else {
-                        stringResource(R.string.no_active_streak)
-                    },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = if (canRestoreStreak) MaterialTheme.colorScheme.error else if (currentStreak > 0) Color(0xFFFF9800) else MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (currentStreak > 0 && !canRestoreStreak) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.LocalFireDepartment,
+                            contentDescription = null,
+                            tint = Color(0xFFFF5722),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.streak_day_streak, currentStreak),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFF9800)
+                        )
+                    }
+                } else {
+                    Text(
+                        text = if (canRestoreStreak) {
+                            stringResource(R.string.streak_lost_banner, potentialStreak)
+                        } else {
+                            stringResource(R.string.no_active_streak)
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (canRestoreStreak) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
                 if (canRestoreStreak) {
                     Spacer(modifier = Modifier.height(4.dp))

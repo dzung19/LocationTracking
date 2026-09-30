@@ -23,8 +23,8 @@ android {
     applicationId = "com.dzung.runner.locationtracker"
     minSdk = 28
     targetSdk = 37
-    versionCode = 8
-    versionName = "1.6"
+    versionCode = 9
+    versionName = "1.7"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "dummy_key"

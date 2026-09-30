@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,6 +43,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.AcUnit
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -53,8 +58,13 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Terrain
+import androidx.compose.material.icons.filled.Thunderstorm
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.filled.WbCloudy
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -76,6 +86,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -86,7 +97,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -158,6 +172,9 @@ fun MainTrackerScreen(
     val shareAppTitle = stringResource(R.string.share_app_title)
 
     var isTrackerExpanded by remember { mutableStateOf(!state.isTracking) }
+    var cardHeightPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
 
     LaunchedEffect(state.isTracking) {
         isTrackerExpanded = !state.isTracking
@@ -550,19 +567,22 @@ fun MainTrackerScreen(
         }
     }
 
+    var isFirstComposition by remember { mutableStateOf(true) }
     var hasSnappedToUserLocation by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(currentLatLng, state.isTracking) {
         val latLng = currentLatLng ?: return@LaunchedEffect
-        if (state.isTracking) {
+        if (isFirstComposition) {
+            isFirstComposition = false
+            if (state.isTracking || !hasSnappedToUserLocation) {
+                hasSnappedToUserLocation = true
+                cameraPositionState.move(
+                    update = CameraUpdateFactory.newLatLngZoom(latLng, 16f)
+                )
+            }
+        } else if (state.isTracking) {
             // Smoothly track user while running/walking
             cameraPositionState.animate(
-                update = CameraUpdateFactory.newLatLngZoom(latLng, 16f)
-            )
-        } else if (!hasSnappedToUserLocation && viewModel.lastCameraPosition == null) {
-            // Instant center on user on cold start when location is first acquired (no animation from nowhere)
-            hasSnappedToUserLocation = true
-            cameraPositionState.move(
                 update = CameraUpdateFactory.newLatLngZoom(latLng, 16f)
             )
         }
@@ -751,7 +771,12 @@ fun MainTrackerScreen(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "👑", fontSize = 13.sp)
+                    Icon(
+                        imageVector = Icons.Default.WorkspacePremium,
+                        contentDescription = null,
+                        modifier = Modifier.size(15.dp),
+                        tint = Color.White
+                    )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = if (isProUser) stringResource(R.string.vip_badge) else stringResource(R.string.pro_badge),
@@ -764,7 +789,7 @@ fun MainTrackerScreen(
             // Share and Like / Rate App Pill
             Surface(
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                color = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 tonalElevation = 4.dp,
                 shadowElevation = 6.dp
@@ -849,18 +874,21 @@ fun MainTrackerScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .animateContentSize(animationSpec = tween(durationMillis = 300)),
+                    .onGloballyPositioned { coordinates ->
+                        cardHeightPx = coordinates.size.height
+                    },
                 elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)
+                    containerColor = MaterialTheme.colorScheme.surface
                 ),
                 border = BorderStroke(
                     width = 1.dp,
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
                 )
             ) {
-                if (!hasLocationPermission) {
+                Box(modifier = Modifier.animateContentSize(animationSpec = tween(durationMillis = 300))) {
+                    if (!hasLocationPermission) {
                     Column(
                         modifier = Modifier.padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -1188,6 +1216,7 @@ fun MainTrackerScreen(
                         }
                     }
                 }
+                }
             }
         }
     }
@@ -1202,7 +1231,7 @@ fun WeatherWidget(
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         modifier = modifier
@@ -1260,15 +1289,14 @@ fun WeatherWidget(
             }
             is WeatherState.Success -> {
                 val weather = weatherState.weather
-                val emoji = when {
-                    weather.icon.startsWith("01") -> "☀️"
-                    weather.icon.startsWith("02") -> "⛅"
-                    weather.icon.startsWith("03") || weather.icon.startsWith("04") -> "☁️"
-                    weather.icon.startsWith("09") || weather.icon.startsWith("10") -> "🌧️"
-                    weather.icon.startsWith("11") -> "⛈️"
-                    weather.icon.startsWith("13") -> "❄️"
-                    weather.icon.startsWith("50") -> "🌫️"
-                    else -> "🌤️"
+                val (weatherIcon, iconTint) = when {
+                    weather.icon.startsWith("01") -> Icons.Default.WbSunny to Color(0xFFFFB300)
+                    weather.icon.startsWith("02") -> Icons.Default.WbCloudy to Color(0xFFFFB300)
+                    weather.icon.startsWith("03") || weather.icon.startsWith("04") -> Icons.Default.Cloud to Color(0xFF90A4AE)
+                    weather.icon.startsWith("09") || weather.icon.startsWith("10") -> Icons.Default.WaterDrop to Color(0xFF42A5F5)
+                    weather.icon.startsWith("11") -> Icons.Default.Thunderstorm to Color(0xFF5C6BC0)
+                    weather.icon.startsWith("13") -> Icons.Default.AcUnit to Color(0xFF29B6F6)
+                    else -> Icons.Default.WbSunny to Color(0xFFFFB300)
                 }
 
                 Column(modifier = Modifier.padding(12.dp)) {
@@ -1276,10 +1304,20 @@ fun WeatherWidget(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            text = emoji,
-                            style = MaterialTheme.typography.titleLarge
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(iconTint.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = weatherIcon,
+                                contentDescription = null,
+                                tint = iconTint,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                         Column {
                             Text(
                                 text = "${weather.temp.toInt()}°C",
@@ -1316,7 +1354,7 @@ fun GhostComparisonWidget(
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         modifier = modifier
@@ -1351,12 +1389,24 @@ fun GhostComparisonWidget(
             )
             Spacer(modifier = Modifier.height(4.dp))
             
-            Text(
-                text = if (diff >= 0) "🏆 Leading" else "⚠️ Lagging",
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.SemiBold,
-                color = if (diff >= 0) Color(0xFF4CAF50) else Color(0xFFFF9800)
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = if (diff >= 0) Icons.Default.EmojiEvents else Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = if (diff >= 0) Color(0xFF4CAF50) else Color(0xFFFF9800),
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = if (diff >= 0) "Leading" else "Lagging",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (diff >= 0) Color(0xFF4CAF50) else Color(0xFFFF9800)
+                )
+            }
         }
     }
 }

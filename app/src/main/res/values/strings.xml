@@ -36,8 +36,8 @@
     <string name="calories_label">CALORIES</string>
     <string name="elevation_label">ELEVATION</string>
     <string name="slope_label">SLOPE</string>
-    <string name="walk">Walk 🚶‍♂️</string>
-    <string name="run">Run 🏃‍♂️</string>
+    <string name="walk">Walk</string>
+    <string name="run">Run</string>
     <string name="start">Start</string>
     <string name="stop">Stop</string>
     <string name="detecting_location">Detecting location...</string>
@@ -54,8 +54,8 @@
     <string name="show_all_activities">Show All Activities</string>
     
     <!-- Orange Tree Streak Card -->
-    <string name="streak_day_streak">🔥 %d-Day Streak!</string>
-    <string name="no_active_streak">😴 No Active Streak</string>
+    <string name="streak_day_streak">%d-Day Streak!</string>
+    <string name="no_active_streak">No Active Streak</string>
     <string name="sprout">Sprout (Mầm cam)</string>
     <string name="sapling">Sapling (Cây con)</string>
     <string name="young_tree">Young Tree (Cây nhỡ)</string>
@@ -91,11 +91,11 @@
     <string name="end_point">END</string>
     
     <!-- Weather Advisor Recommendations -->
-    <string name="weather_rainy">Rainy weather ☔. Running indoors is recommended.</string>
-    <string name="weather_hot">Very hot! 🥵 Hydrate well and avoid peak sun hours.</string>
-    <string name="weather_chilly">Chilly weather 🥶. Dress in layers!</string>
-    <string name="weather_snowy">Snowy! ❄️ Watch out for slippery roads.</string>
-    <string name="weather_perfect">Perfect weather for a run! 🏃‍♂️</string>
+    <string name="weather_rainy">Rainy weather. Running indoors is recommended.</string>
+    <string name="weather_hot">Very hot! Hydrate well and avoid peak sun hours.</string>
+    <string name="weather_chilly">Chilly weather. Dress in layers!</string>
+    <string name="weather_snowy">Snowy! Watch out for slippery roads.</string>
+    <string name="weather_perfect">Perfect weather for a run!</string>
     <string name="session_not_found">Session not found</string>
     <string name="running_workout">Running Workout</string>
     <string name="walking_workout">Walking Workout</string>
@@ -140,7 +140,7 @@
     <string name="restore_streak_button">Watch Ad to Restore</string>
     <string name="restore_streak_premium_button">Restore Streak (No Ads)</string>
     <string name="streak_lost_banner">Streak broken (%d days lost)</string>
-    <string name="streak_restored_success">Streak restored! 🔥 %d days</string>
+    <string name="streak_restored_success">Streak restored! %d days</string>
     <string name="premium_streak_restored">Streak restored instantly (PRO perk)!</string>
     <string name="ad_not_ready">Ad is not ready yet. Please try again in a moment.</string>
 
